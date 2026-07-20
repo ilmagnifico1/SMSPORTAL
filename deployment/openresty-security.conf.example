@@ -1,0 +1,29 @@
+# OpenResty/Nginx: usare il primo blocco come virtual host HTTP separato.
+# Sostituire il server_name se necessario.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name smsportal.book-my.eu;
+    return 301 https://$host$request_uri;
+}
+
+# Inserire le direttive seguenti DENTRO il server HTTPS esistente.
+# Non pubblicare direttamente l'upstream PHP/Lighttpd su Internet.
+client_max_body_size 6m;
+server_tokens off;
+
+# File e directory che non devono mai essere serviti come contenuto statico.
+location ~ (^|/)\. { return 404; }
+location ~* ^/(app|classes|inc|logs|uploads|scripts|templates|docs|deployment|chrome-extension|internalprovider)(/|$) { return 404; }
+location ~* ^/(README|TODO)\.md$ { return 404; }
+location ~* ^/web\.config$ { return 404; }
+location ~* \.(sql|log|bak|ini|env|dist|lock|lnk|pem|key|conf|config|md|ps1)$ { return 404; }
+
+# Nel location che esegue proxy_pass verso Lighttpd/PHP aggiungere:
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+
+# Nel servizio PHP impostare SMS_TRUSTED_PROXIES sull'IP/CIDR esatto di OpenResty.
+# Dopo il reload verificare la configurazione con `nginx -t` o `openresty -t`.

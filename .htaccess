@@ -1,0 +1,21 @@
+Options -Indexes
+ServerSignature Off
+
+<IfModule mod_authz_core.c>
+    <FilesMatch "(?i)(^\.|\.(?:sql|log|bak|ini|env|dist|lock|lnk|pem|key|conf|config|md|ps1)$)">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:app|classes|inc|logs|uploads|scripts|templates|docs|deployment|chrome-extension|internalprovider)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:README|TODO)\.md$ - [F,L,NC]
+    RewriteRule ^web\.config$ - [F,L,NC]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

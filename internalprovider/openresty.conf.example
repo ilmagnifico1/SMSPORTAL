@@ -1,0 +1,25 @@
+# Nel blocco `http` globale:
+# limit_req_zone $binary_remote_addr zone=internal_provider:10m rate=10r/s;
+
+# Virtual host dedicato al provider fittizio. Correggere il server_name se necessario.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name provtest.book-my.eu;
+    return 301 https://$host$request_uri;
+}
+
+# Impostare la document root su /percorso/assoluto/internalprovider/public.
+# Nel virtual host HTTPS, prima del passaggio a PHP:
+client_max_body_size 64k;
+location ~ (^|/)\. { return 404; }
+# Nel location dell'API aggiungere: limit_req zone=internal_provider burst=20 nodelay;
+
+# Esempio se PHP/Lighttpd, con document root `internalprovider/public`, gestisce il servizio su 127.0.0.1:8091:
+# location / {
+#     proxy_pass http://127.0.0.1:8091;
+#     proxy_set_header Host $host;
+#     proxy_set_header X-Real-IP $remote_addr;
+#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#     proxy_set_header X-Forwarded-Proto $scheme;
+# }

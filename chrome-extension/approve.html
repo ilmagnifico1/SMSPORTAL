@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Autorizza invio SMS</title>
+  <link rel="stylesheet" href="approve.css">
+</head>
+<body>
+  <main>
+    <p class="eyebrow">SMS Portal</p>
+    <h1>Conferma l’invio</h1>
+    <p class="warning">Controlla con attenzione: la firma autorizza soltanto l’operazione mostrata qui sotto.</p>
+    <dl id="summary"></dl>
+    <p id="status" role="status">Caricamento richiesta…</p>
+    <div class="actions">
+      <button id="deny" type="button" class="secondary">Annulla</button>
+      <button id="approve" type="button" disabled>Autorizza invio</button>
+    </div>
+  </main>
+  <script src="approve.js"></script>
+</body>
+</html>

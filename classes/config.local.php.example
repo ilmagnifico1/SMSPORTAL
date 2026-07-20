@@ -1,0 +1,13 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'host' => 'localhost',
+    'port' => 3306,
+    'database' => 'sms',
+    'username' => 'sms_app',
+    'password' => 'sostituisci-con-una-password-sicura',
+    // Inserire qui solo gli IP/CIDR dei reverse proxy realmente affidabili.
+    'trusted_proxies' => [],
+];

@@ -1,0 +1,20 @@
+# Includere questo file nella configurazione globale di Lighttpd e adattare /sms
+# al mount reale dell'applicazione. Lighttpd non legge .htaccess.
+server.max-request-size = 6144
+dir-listing.activate = "disable"
+
+$HTTP["url"] =~ "^/sms/(app|classes|inc|logs|uploads|scripts|templates|docs|deployment|chrome-extension|internalprovider)(/|$)" {
+    url.access-deny = ( "" )
+}
+
+$HTTP["url"] =~ "(?i)\\.(sql|log|bak|ini|env|dist|lock|lnk|pem|key|conf|config|md|ps1)$" {
+    url.access-deny = ( "" )
+}
+
+$HTTP["url"] =~ "^/sms/\\." {
+    url.access-deny = ( "" )
+}
+
+$HTTP["url"] =~ "^/sms/(README|TODO)\\.md$|^/sms/web\\.config$" {
+    url.access-deny = ( "" )
+}

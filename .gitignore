@@ -1,0 +1,37 @@
+# Credenziali e configurazioni locali
+.env
+.env.*
+!.env.example
+/classes/config.local.php
+/internalprovider/config.local.php
+
+# Dati generati durante l'esecuzione
+/logs/*
+!/logs/.gitkeep
+/uploads/*
+!/uploads/.gitkeep
+/internalprovider/storage/*
+!/internalprovider/storage/.gitkeep
+
+# Database, backup e pacchetti generati
+*.sql
+!/database/schema.sql
+*.db
+*.sqlite
+*.bak
+*.zip
+*.tar
+*.gz
+
+# Dipendenze e risultati di build locali
+/vendor/
+/node_modules/
+/coverage/
+/.cache/
+
+# Sistema operativo ed editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+/.idea/
+/.vscode/

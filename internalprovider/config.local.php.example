@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    // Lasciare vuoto mantiene il servizio in fail-closed. Generare un segreto prima dell'avvio.
+    'api_key' => '',
+    // Generare con: php -r "$2y$10$mCeyX7.47TRiu15brItOmethM8jy/egnLUn3yQ1JubFdDS7xbNwW6"
+    'admin_password_hash' => '',
+    'default_scenario' => 'success',
+    'timeout_ms' => 15000,
+    'max_request_bytes' => 65536,
+    'log_file' => __DIR__ . '/storage/messages.ndjson',
+    'log_message' => false,
+    'max_log_bytes' => 10485760,
+];

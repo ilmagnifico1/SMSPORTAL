@@ -1,0 +1,9 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'version' => '1.1.0',
+    'chrome_directory' => 'chrome-extension',
+    'firefox_directory' => 'firefox-extension',
+];
