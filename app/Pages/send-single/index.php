@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send'])) {
                         <option value="">Seleziona provider</option>
                         <?php foreach ($providers as $provider) : ?>
                             <option value="<?php echo (int)$provider['id']; ?>" <?php echo (string)($_POST['provider_id'] ?? '') === (string)$provider['id'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars(((string)($provider['provider_type'] ?? '') === 'internal' ? '[TEST] ' : '') . $provider['name'] . (is_super_admin() ? ' · Azienda #' . (int)$provider['company_id'] : ''), ENT_QUOTES, 'UTF-8'); ?>
+                                <?php echo htmlspecialchars($provider['name'] . (is_super_admin() ? ' · Azienda #' . (int)$provider['company_id'] : ''), ENT_QUOTES, 'UTF-8'); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

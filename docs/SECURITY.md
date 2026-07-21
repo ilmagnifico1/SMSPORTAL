@@ -49,7 +49,6 @@ SMS_LOGIN_WINDOW_SECONDS=900
 SMS_LOGIN_LOCK_SECONDS=900
 SMS_SESSION_IDLE_SECONDS=1800
 SMS_SESSION_ABSOLUTE_SECONDS=28800
-SMS_TEST_LOG_RETENTION_DAYS=30
 ```
 
 Se il servizio non consente di impostare variabili d'ambiente, `storage/config.local.php` può contenere `trusted_proxies` come lista di IP/CIDR. Usare esclusivamente gli indirizzi puntuali dei reverse proxy (preferibilmente `/32` o `/128`), mai un'intera rete privata.

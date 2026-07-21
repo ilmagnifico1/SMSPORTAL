@@ -52,7 +52,7 @@ $editingSaleRule = $credits->describePricingRule((string)($editingSale['prefix']
 if ($editingPurchase) { $openPurchaseModal = true; }
 if ($editingSale) { $openSaleModal = true; }
 $companies = is_super_admin() ? $app->getCompanies(true) : [];
-$providers = is_super_admin() ? array_values(array_filter($app->getProviders(['active' => 'all']), static fn(array $provider): bool => (string)($provider['provider_type'] ?? '') !== 'internal')) : [];
+$providers = is_super_admin() ? $app->getProviders(['active' => 'all']) : [];
 $companyProviderMap = [];
 foreach ($companies as $company) { $companyProviderMap[(int)$company['id']] = $app->getCompanyProviderIds((int)$company['id']); }
 $countryCodes = sms_country_codes();

@@ -80,7 +80,7 @@ $flashMessage = flash_message();
                 </select>
                 <select name="provider_id">
                     <option value="">Tutti i provider</option>
-                    <?php foreach ($providers as $provider) : if ((string)($provider['provider_type'] ?? '') === 'internal') continue; ?>
+                    <?php foreach ($providers as $provider) : ?>
                         <option value="<?php echo (int)$provider['id']; ?>" <?php echo $filters['provider_id'] === (string)$provider['id'] ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($provider['name'], ENT_QUOTES, 'UTF-8'); ?>
                         </option>

@@ -52,7 +52,7 @@ if ($editingUser) {
     $openModal = true;
 }
 $submittedUser = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_user';
-$availableProviders = array_values(array_filter($app->getProviders(['active' => '1']), static fn(array $provider): bool => (string)($provider['provider_type'] ?? '') !== 'internal'));
+$availableProviders = $app->getProviders(['active' => '1']);
 $providerCompanyMap = [];
 if (is_super_admin()) {
     foreach ($companies as $company) {

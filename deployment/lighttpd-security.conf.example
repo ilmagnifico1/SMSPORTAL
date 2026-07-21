@@ -3,7 +3,7 @@
 server.max-request-size = 6144
 dir-listing.activate = "disable"
 
-$HTTP["url"] =~ "^/sms/(app|classes|inc|logs|uploads|storage|scripts|templates|docs|deployment|chrome-extension|internalprovider)(/|$)" {
+$HTTP["url"] =~ "^/sms/(app|classes|inc|logs|uploads|storage|scripts|templates|docs|deployment|chrome-extension)(/|$)" {
     url.access-deny = ( "" )
 }
 

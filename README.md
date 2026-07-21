@@ -9,7 +9,6 @@ SMS Portal è un’applicazione web PHP per gestire l’invio di SMS singoli e c
 - Invio di SMS singoli e campagne verso liste importate da CSV.
 - Gestione multi-azienda con team, utenti, ruoli e permessi.
 - Configurazione di più provider SMS e assegnazione alle aziende.
-- Provider fittizio isolato per test di successo, rifiuto, errore, rate limit e timeout senza costi reali.
 - Crediti aziendali e provider, ricariche e storico dei movimenti.
 - Costi di acquisto e prezzi di vendita per Paese, prefisso, sotto-prefisso o intervallo telefonico.
 - Calcolo dei segmenti SMS, della spesa prevista e del margine.
@@ -41,7 +40,6 @@ SMS_TRUSTED_PROXIES=<IP/CIDR del reverse proxy>
 SMS_PUBLIC_HOST=<hostname pubblico>
 SMS_PROVIDER_ALLOW_HTTP=false
 SMS_PROVIDER_ALLOW_PRIVATE=false
-SMS_TEST_LOG_RETENTION_DAYS=30
 ```
 
 Il wizard salva la configurazione locale in `storage/config.local.php`, che è escluso da Git e bloccato dal server web. Per compatibilità è ancora supportato `classes/config.local.php`. La chiave locale `trusted_proxies` accetta soltanto IP/CIDR esatti e viene usata quando `SMS_TRUSTED_PROXIES` non è impostata. Non salvare credenziali, dump SQL, log o chiavi private nel repository.
@@ -83,7 +81,6 @@ templates/          Componenti e viste condivise
 css/ e js/          Stili e script dell’interfaccia
 chrome-extension/   Estensione Chrome per autorizzare gli invii
 firefox-extension/  Estensione Firefox per autorizzare gli invii
-internalprovider/   Microservizio provider fittizio; pubblicare solo la sottocartella public/
 scripts/            Verifiche automatiche, audit e test diagnostici
 logs/               File di fallback e registri locali non pubblici
 ```
@@ -116,7 +113,7 @@ php scripts/mvc-selftest.php
 php scripts/pricing-rules-selftest.php
 php scripts/campaign-estimate-selftest.php
 php scripts/device-auth-selftest.php
-php scripts/internal-provider-selftest.php
+php scripts/installer-selftest.php
 powershell -ExecutionPolicy Bypass -File scripts/security-check.ps1
 ```
 

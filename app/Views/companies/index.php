@@ -138,7 +138,7 @@ $formActive = $submitted
                                     value="<?php echo (int)$provider['id']; ?>"
                                     <?php echo in_array((int)$provider['id'], $selectedProviderIds, true) ? 'checked' : ''; ?>
                                 >
-                                <?php echo $escape(((string)($provider['provider_type'] ?? '') === 'internal' ? '[TEST · Solo Super Admin] ' : '') . $provider['name']); ?>
+                                <?php echo $escape((string)$provider['name']); ?>
                             </label>
                         <?php endforeach; ?>
                     <?php endif; ?>

@@ -1,7 +1,0 @@
-# Virtual host backend dedicato. Adattare percorso e socket FastCGI alla macchina.
-$HTTP["host"] == "provtest.book-my.eu" {
-    server.document-root = "/percorso/assoluto/internalprovider/public"
-    dir-listing.activate = "disable"
-    server.max-request-size = 64
-    url.rewrite-if-not-file = ( "^/.*$" => "/index.php" )
-}

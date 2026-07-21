@@ -11,7 +11,6 @@ $userFilters = ['search' => '', 'active' => 'all'];
 $providerFilters = ['search' => '', 'active' => 'all'];
 $users = $app->getUsers($userFilters);
 $providers = $app->getProviders($providerFilters);
-$providers = array_values(array_filter($providers, static fn(array $provider): bool => (string)($provider['provider_type'] ?? '') !== 'internal'));
 $dashboardFilters = is_super_admin() ? [] : (user_can('view_dashboard')
     ? ['team_id' => current_team_id()]
     : ['user_name' => (string)$_SESSION['logged']]);

@@ -420,31 +420,6 @@ CREATE TABLE `teams` (
   KEY `idx_teams_company_id` (`company_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-DROP TABLE IF EXISTS `test_message_logs`;
-CREATE TABLE `test_message_logs` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `company_id` int(11) DEFAULT 0,
-  `team_id` int(11) DEFAULT 0,
-  `user_name` varchar(100) DEFAULT '',
-  `provider_id` int(11) DEFAULT 0,
-  `provider_name` varchar(100) DEFAULT '',
-  `lead_id` int(11) DEFAULT 0,
-  `list_id` int(11) DEFAULT 0,
-  `campaign_id` int(11) DEFAULT 0,
-  `campaign_run_token` char(64) DEFAULT NULL,
-  `recipient` varchar(100) NOT NULL,
-  `message` text NOT NULL,
-  `status` varchar(50) DEFAULT 'pending',
-  `response` text DEFAULT '',
-  `http_code` int(11) DEFAULT 0,
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_test_campaign_run_lead` (`campaign_run_token`,`lead_id`),
-  KEY `idx_test_message_logs_provider` (`provider_id`),
-  KEY `idx_test_message_logs_campaign` (`campaign_id`),
-  KEY `idx_test_message_logs_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
 DROP TABLE IF EXISTS `user_providers`;
 CREATE TABLE `user_providers` (
   `user_id` int(11) NOT NULL,

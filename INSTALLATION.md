@@ -50,7 +50,6 @@ Cartelle scrivibili necessarie durante l'installazione e l'esecuzione:
 sudo install -d -o www-data -g www-data -m 0750 /var/www/smsportal/storage
 sudo install -d -o www-data -g www-data -m 0750 /var/www/smsportal/logs
 sudo install -d -o www-data -g www-data -m 0750 /var/www/smsportal/uploads
-sudo install -d -o www-data -g www-data -m 0750 /var/www/smsportal/internalprovider/storage
 ```
 
 Dopo che l'installazione web è terminata, rendi la configurazione non modificabile da PHP:
@@ -64,9 +63,9 @@ sudo find /var/www/smsportal/storage -type f -exec chmod 0640 {} \;
 Mantieni scrivibili da PHP soltanto le directory operative:
 
 ```bash
-sudo chown -R www-data:www-data /var/www/smsportal/logs /var/www/smsportal/uploads /var/www/smsportal/internalprovider/storage
-sudo find /var/www/smsportal/logs /var/www/smsportal/uploads /var/www/smsportal/internalprovider/storage -type d -exec chmod 0750 {} \;
-sudo find /var/www/smsportal/logs /var/www/smsportal/uploads /var/www/smsportal/internalprovider/storage -type f -exec chmod 0640 {} \;
+sudo chown -R www-data:www-data /var/www/smsportal/logs /var/www/smsportal/uploads
+sudo find /var/www/smsportal/logs /var/www/smsportal/uploads -type d -exec chmod 0750 {} \;
+sudo find /var/www/smsportal/logs /var/www/smsportal/uploads -type f -exec chmod 0640 {} \;
 ```
 
 Non usare `chmod 777`.
@@ -81,9 +80,5 @@ Se non vuoi usare il wizard:
 4. Crea `storage/install.lock` oppure configura le variabili `SMS_DB_*` e il lock nel sistema di distribuzione.
 
 Le variabili d'ambiente `SMS_DB_HOST`, `SMS_DB_PORT`, `SMS_DB_NAME`, `SMS_DB_USER`, `SMS_DB_PASSWORD`, `SMS_TRUSTED_PROXIES` e `SMS_PUBLIC_HOST` hanno precedenza sulla configurazione locale.
-
-## Provider interno di test
-
-Il simulatore è nella cartella `internalprovider/`. Copia `internalprovider/config.local.php.example` in `internalprovider/config.local.php`, imposta una chiave API casuale e una password amministrativa con hash PHP, quindi pubblica soltanto `internalprovider/public/` come document root dell'host di test.
 
 Non versionare mai file `config.local.php`, log, messaggi registrati, upload o dump contenenti dati.

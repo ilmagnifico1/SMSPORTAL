@@ -172,7 +172,6 @@ class CreditManager {
 
     public function adjustProviderBalance(int $providerId, float $amount, string $description, string $createdBy): bool {
         if (!(function_exists('is_super_admin') && is_super_admin()) || $providerId <= 0 || abs($amount) < 0.0001) { return false; }
-        if ($this->isInternalProvider($providerId)) { return false; }
         $ownsTransaction = !$this->pdo->inTransaction();
         if ($ownsTransaction) { $this->pdo->beginTransaction(); }
         try {
@@ -193,7 +192,6 @@ class CreditManager {
 
     public function setProviderCreditControl(int $providerId, bool $enabled): bool {
         if (!(function_exists('is_super_admin') && is_super_admin()) || $providerId <= 0) { return false; }
-        if ($this->isInternalProvider($providerId)) { return false; }
         $stmt = $this->pdo->prepare('INSERT INTO provider_credits (provider_id, credit_control_enabled) VALUES (:provider_id, :enabled) ON DUPLICATE KEY UPDATE credit_control_enabled = VALUES(credit_control_enabled)');
         return $stmt->execute([':provider_id' => $providerId, ':enabled' => $enabled ? 1 : 0]);
     }
@@ -327,7 +325,7 @@ class CreditManager {
         $operatorName = trim((string)($data['operator_name'] ?? ''));
         $price = round((float)str_replace(',', '.', (string)($data['purchase_price'] ?? 0)), 4);
         $active = !empty($data['active']) ? 1 : 0;
-        if ($providerId <= 0 || $this->isInternalProvider($providerId) || $prefix === '' || $price < 0 || ($this->isOperatorRule($prefix) && $operatorName === '')) {
+        if ($providerId <= 0 || $prefix === '' || $price < 0 || ($this->isOperatorRule($prefix) && $operatorName === '')) {
             return false;
         }
         try {
@@ -399,7 +397,7 @@ class CreditManager {
         $operatorName = trim((string)($data['operator_name'] ?? ''));
         $price = round((float)str_replace(',', '.', (string)($data['sale_price'] ?? 0)), 4);
         $active = !empty($data['active']) ? 1 : 0;
-        if ($companyId <= 0 || $providerId <= 0 || $this->isInternalProvider($providerId) || $prefix === '' || $price < 0 || ($this->isOperatorRule($prefix) && $operatorName === '')) {
+        if ($companyId <= 0 || $providerId <= 0 || $prefix === '' || $price < 0 || ($this->isOperatorRule($prefix) && $operatorName === '')) {
             return false;
         }
         $stmt = $this->pdo->prepare('SELECT 1 FROM company_providers WHERE company_id = :company_id AND provider_id = :provider_id LIMIT 1');
@@ -752,15 +750,6 @@ class CreditManager {
     private function isOperatorRule(string $rule): bool {
         $description = $this->describePricingRule($rule);
         return in_array((string)$description['type'], ['subprefix', 'range'], true);
-    }
-
-    private function isInternalProvider(int $providerId): bool {
-        if ($providerId <= 0) {
-            return false;
-        }
-        $stmt = $this->pdo->prepare('SELECT provider_type FROM providers WHERE id = :id LIMIT 1');
-        $stmt->execute([':id' => $providerId]);
-        return strtolower((string)$stmt->fetchColumn()) === 'internal';
     }
 
     private function representativeNumberForRule(string $rule): string {

@@ -227,7 +227,7 @@ $companies = is_super_admin() ? $app->getCompanies() : [];
                             <option value="">Seleziona provider</option>
                             <?php $selectedProvider = (string)($_POST['provider_id'] ?? ($editingCampaign['provider_id'] ?? '')); ?>
                             <?php foreach ($providers as $provider) : ?>
-                                <option value="<?php echo (int)$provider['id']; ?>" <?php echo $selectedProvider === (string)$provider['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars(((string)($provider['provider_type'] ?? '') === 'internal' ? '[TEST] ' : '') . $provider['name'] . (is_super_admin() ? ' · Azienda #' . (int)$provider['company_id'] : ''), ENT_QUOTES, 'UTF-8'); ?></option>
+                                <option value="<?php echo (int)$provider['id']; ?>" <?php echo $selectedProvider === (string)$provider['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($provider['name'] . (is_super_admin() ? ' · Azienda #' . (int)$provider['company_id'] : ''), ENT_QUOTES, 'UTF-8'); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

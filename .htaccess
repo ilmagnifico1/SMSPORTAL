@@ -9,7 +9,7 @@ ServerSignature Off
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(?:app|classes|inc|logs|uploads|storage|scripts|templates|docs|deployment|chrome-extension|internalprovider)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:app|classes|inc|logs|uploads|storage|scripts|templates|docs|deployment|chrome-extension)(?:/|$) - [F,L,NC]
     RewriteRule ^(?:README|TODO)\.md$ - [F,L,NC]
     RewriteRule ^web\.config$ - [F,L,NC]
 </IfModule>

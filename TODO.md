@@ -20,8 +20,7 @@
 
 ## Sicurezza, internazionalizzazione e preventivo campagne
 
-16. [x] Implementare un provider SMS fittizio/modalità test per collaudare gli invii massivi senza contattare gateway reali e senza costi: simulare risposte positive ed errori, mantenere separati crediti, log, statistiche e dati di fatturazione di test da quelli reali, e rendere il provider chiaramente riconoscibile e non disponibile agli utenti operativi.
-17. [ ] Eseguire un controllo completo della sicurezza del codice e dell'infrastruttura su tutti i protocolli e punti di accesso, non soltanto tramite browser web; prevenire bot, brute force, scansioni automatiche, injection, abuso delle API e altri vettori di attacco.
+16. [ ] Eseguire un controllo completo della sicurezza del codice e dell'infrastruttura su tutti i protocolli e punti di accesso, non soltanto tramite browser web; prevenire bot, brute force, scansioni automatiche, injection, abuso delle API e altri vettori di attacco.
     - [x] Audit e hardening del codice applicativo, autenticazione, sessioni, CSRF, permessi, upload CSV, provider, TLS/SSRF, endpoint legacy e invii concorrenti.
     - [x] Aggiungere configurazioni di protezione per Apache/IIS, esempio Lighttpd, checklist di deploy e controllo statico automatico.
     - [x] Spostare o eliminare dalla document root `localhost.sql` e `log_messaggi.txt - collegamento.lnk`.
@@ -30,8 +29,8 @@
     - [x] Rimuovere dalla document root la chiave privata `chrome-extension.pem` risultata pubblicamente scaricabile; considerarla compromessa e rigenerarla prima della prossima distribuzione firmata.
     - [ ] Applicare su DSM/OpenResty la configurazione del reverse proxy, forzare HTTPS e bloccare `.git`, file di configurazione, documentazione e directory interne.
     - [ ] Creare e attivare un utente DB dedicato, ruotare le credenziali root e provider, quindi limitare MySQL/SSH/SMB alle sole reti amministrative.
-18. [x] Rendere l'applicazione multilingua, centralizzando le traduzioni e permettendo la selezione della lingua per ciascun utente.
-19. [x] Aggiungere alla campagna il campo calcolato "Spesa prevista": analizzare tutti i numeri della lista, riconoscere Paese e prefisso, applicare le relative tariffe e verificare prima dell'avvio se il credito disponibile è sufficiente per completare l'intera campagna.
+17. [x] Rendere l'applicazione multilingua, centralizzando le traduzioni e permettendo la selezione della lingua per ciascun utente.
+18. [x] Aggiungere alla campagna il campo calcolato "Spesa prevista": analizzare tutti i numeri della lista, riconoscere Paese e prefisso, applicare le relative tariffe e verificare prima dell'avvio se il credito disponibile è sufficiente per completare l'intera campagna.
 20. [x] Estendere il listino oltre il solo prefisso internazionale, gestendo i costi per operatore telefonico tramite sotto-prefissi o intervalli numerici nazionali. Per esempio, per il prefisso italiano `+39`, riconoscere l'operatore dai numeri successivi e applicare il relativo costo di acquisto e prezzo di vendita.
 
 ## Architettura MVC

@@ -56,11 +56,8 @@ $providers = $app->getProviders($filters);
 $providerBalances = [];
 foreach ($credits->getProviderBalances() as $providerBalance) { $providerBalances[(int)$providerBalance['provider_id']] = $providerBalance; }
 $providerTransactions = $credits->getProviderTransactions(0, 100);
-$testProviderLogs = is_super_admin() ? $app->getInternalTestLogs(100) : [];
-$testProviderStats = is_super_admin() ? $app->getInternalTestStats() : ['total' => 0, 'sent' => 0, 'failed' => 0];
 $creditProviderId = (int)($_GET['credit_provider'] ?? ($_POST['provider_id'] ?? 0));
 $creditProvider = $creditProviderId > 0 ? $app->getProviderById($creditProviderId) : null;
-if ($creditProvider && (string)($creditProvider['provider_type'] ?? '') === 'internal') { $creditProvider = null; $creditProviderId = 0; }
 if ($creditProvider && !empty($_GET['credit_provider'])) { $openCreditModal = true; }
 $editingProvider = !empty($_GET['edit']) ? $app->getProviderById((int)$_GET['edit']) : null;
 if ($editingProvider) {
@@ -138,7 +135,6 @@ $submittedProvider = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] 
                             <?php $selectedProviderType = (string)($_POST['provider_type'] ?? ($editingProvider['provider_type'] ?? 'generic')); ?>
                             <option value="generic" <?php echo $selectedProviderType === 'generic' ? 'selected' : ''; ?>>Generico</option>
                             <option value="twilio" <?php echo $selectedProviderType === 'twilio' ? 'selected' : ''; ?>>Twilio</option>
-                            <option value="internal" <?php echo $selectedProviderType === 'internal' ? 'selected' : ''; ?>>Test interno · solo Super Admin</option>
                         </select>
                     </div>
                     <div>
@@ -153,7 +149,6 @@ $submittedProvider = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] 
                         <label for="endpoint">Endpoint</label>
                         <input type="text" name="endpoint" id="endpoint" value="<?php echo htmlspecialchars((string)($_POST['endpoint'] ?? ($editingProvider['endpoint'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>" required>
                         <small>Twilio: https://api.twilio.com/2010-04-01/Accounts/ACCOUNT_SID/Messages.json</small>
-                        <small>Test interno: https://provtest.book-my.eu/api/v1/messages?scenario=success</small>
                     </div>
                     <div>
                         <label for="username">Username</label>
@@ -168,7 +163,6 @@ $submittedProvider = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] 
                     <div>
                         <label for="api_key">API key</label>
                         <input type="password" name="api_key" id="api_key" value="" autocomplete="off" placeholder="<?php echo $editingProvider ? 'Lascia vuoto per non modificare' : ''; ?>">
-                        <small>Per il test interno deve coincidere con INTERNAL_PROVIDER_API_KEY ed essere lunga almeno 32 caratteri.</small>
                     </div>
                     <div>
                         <label for="default_from">Mittente di default</label>
@@ -218,13 +212,13 @@ $submittedProvider = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] 
                                     <tr>
                                         <td><?php echo htmlspecialchars($provider['name'], ENT_QUOTES, 'UTF-8'); ?></td>
                                         <?php if (is_super_admin()) : ?><td><?php $companyName = '-'; foreach ($companies as $company) { if ((int)$company['id'] === (int)$provider['company_id']) { $companyName = (string)$company['name']; break; } } echo htmlspecialchars($companyName, ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
-                                        <?php if (is_super_admin()) : ?><?php $providerCredit = $providerBalances[(int)$provider['id']] ?? ['balance' => 0, 'profit_total' => 0]; $isTestProvider = (string)($provider['provider_type'] ?? '') === 'internal'; ?><td class="<?php echo $isTestProvider ? '' : ((float)$providerCredit['balance'] > 0 ? 'credit-positive' : 'credit-negative'); ?>"><strong><?php echo $isTestProvider ? 'Non applicabile' : '€ ' . number_format((float)$providerCredit['balance'], 4, ',', '.'); ?></strong></td><td class="<?php echo $isTestProvider ? '' : ((float)$providerCredit['profit_total'] >= 0 ? 'credit-positive' : 'credit-negative'); ?>"><strong><?php echo $isTestProvider ? 'Separato dai dati reali' : '€ ' . number_format((float)$providerCredit['profit_total'], 4, ',', '.'); ?></strong></td><?php endif; ?>
-                                        <?php $providerType = (string)($provider['provider_type'] ?? 'generic'); $providerTypeLabel = $providerType === 'twilio' ? 'Twilio' : ($providerType === 'internal' ? 'TEST INTERNO' : 'Generico'); ?>
+                                        <?php if (is_super_admin()) : ?><?php $providerCredit = $providerBalances[(int)$provider['id']] ?? ['balance' => 0, 'profit_total' => 0]; ?><td class="<?php echo (float)$providerCredit['balance'] > 0 ? 'credit-positive' : 'credit-negative'; ?>"><strong>€ <?php echo number_format((float)$providerCredit['balance'], 4, ',', '.'); ?></strong></td><td class="<?php echo (float)$providerCredit['profit_total'] >= 0 ? 'credit-positive' : 'credit-negative'; ?>"><strong>€ <?php echo number_format((float)$providerCredit['profit_total'], 4, ',', '.'); ?></strong></td><?php endif; ?>
+                                        <?php $providerType = (string)($provider['provider_type'] ?? 'generic'); $providerTypeLabel = $providerType === 'twilio' ? 'Twilio' : 'Generico'; ?>
                                         <td><span class="provider-tag <?php echo htmlspecialchars($providerType, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $providerTypeLabel; ?></span></td>
                                         <td><span class="status-pill <?php echo (int)$provider['active'] === 1 ? 'sent' : 'failed'; ?>"><?php echo (int)$provider['active'] === 1 ? 'Attivo' : 'Disattivo'; ?></span></td>
                                         <td class="actions-cell">
                                             <a href="<?php echo app_url('providers', ['edit' => (int)$provider['id']]); ?>" class="table-link">Modifica</a>
-                                            <?php if (is_super_admin() && (string)($provider['provider_type'] ?? '') !== 'internal') : ?><a href="<?php echo app_url('providers', ['credit_provider' => (int)$provider['id']]); ?>" class="action-btn">Ricarica</a><?php endif; ?>
+                                            <?php if (is_super_admin()) : ?><a href="<?php echo app_url('providers', ['credit_provider' => (int)$provider['id']]); ?>" class="action-btn">Ricarica</a><?php endif; ?>
                                             <form method="post">
                                                 <?php echo csrf_field(); ?>
                                                 <input type="hidden" name="action" value="delete_provider">
@@ -240,13 +234,6 @@ $submittedProvider = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] 
                 </div>
             </section>
             <?php if (is_super_admin()) : ?>
-            <section class="card provider-test-history">
-                <div class="section-heading"><div><p class="eyebrow">Ambiente isolato</p><h3>Ultimi invii del provider fittizio</h3><p class="muted-text">Questi eventi non modificano credito, costi, ricavi o statistiche degli SMS reali.</p></div><span class="provider-tag internal">TEST</span></div>
-                <div class="stats-grid stats-footer"><article class="stat-card"><strong><?php echo (int)$testProviderStats['total']; ?></strong><span>Simulazioni totali</span></article><article class="stat-card"><strong><?php echo (int)$testProviderStats['sent']; ?></strong><span>Successi simulati</span></article><article class="stat-card"><strong><?php echo (int)$testProviderStats['failed']; ?></strong><span>Errori simulati</span></article></div>
-                <div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Provider</th><th>Utente</th><th>Destinatario</th><th>Stato</th><th>HTTP</th><th>Risposta</th></tr></thead><tbody>
-                <?php if (!$testProviderLogs) : ?><tr><td colspan="7">Nessun invio di test registrato.</td></tr><?php else : foreach ($testProviderLogs as $testLog) : ?><tr><td><?php echo htmlspecialchars((string)$testLog['created_at'], ENT_QUOTES, 'UTF-8'); ?></td><td><?php echo htmlspecialchars((string)$testLog['provider_name'], ENT_QUOTES, 'UTF-8'); ?></td><td><?php echo htmlspecialchars((string)$testLog['user_name'], ENT_QUOTES, 'UTF-8'); ?></td><td><?php echo htmlspecialchars((string)$testLog['recipient'], ENT_QUOTES, 'UTF-8'); ?></td><td><span class="status-pill <?php echo (string)$testLog['status'] === 'sent' ? 'sent' : 'failed'; ?>"><?php echo htmlspecialchars((string)$testLog['status'], ENT_QUOTES, 'UTF-8'); ?></span></td><td><?php echo (int)$testLog['http_code']; ?></td><td class="wrap-text"><?php echo htmlspecialchars((string)$testLog['response'], ENT_QUOTES, 'UTF-8'); ?></td></tr><?php endforeach; endif; ?>
-                </tbody></table></div>
-            </section>
             <section class="card provider-credit-history">
                 <div class="section-heading"><div><p class="eyebrow">Uscite e ricariche</p><h3>Movimenti credito provider</h3></div></div>
                 <div class="table-wrap"><table class="data-table"><thead><tr><th>Data</th><th>Provider</th><th>Tipo</th><th>Importo</th><th>Descrizione</th></tr></thead><tbody>
@@ -256,7 +243,7 @@ $submittedProvider = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] 
             <?php endif; ?>
         </div>
     </div>
-    <?php if (is_super_admin()) : ?><div class="modal-overlay <?php echo $openCreditModal ? 'is-active' : ''; ?>" id="providerCreditModal"><div class="modal-card"><div class="modal-header"><div><p class="eyebrow">Credito provider</p><h3>Ricarica o storno<?php echo $creditProvider ? ' · ' . htmlspecialchars((string)$creditProvider['name'], ENT_QUOTES, 'UTF-8') : ''; ?></h3></div><button type="button" class="modal-close-btn" id="closeProviderCreditModal" aria-label="Chiudi popup">x</button></div><form method="post" class="stacked-form"><?php echo csrf_field(); ?><input type="hidden" name="action" value="adjust_provider_credit"><label for="credit_provider_id">Provider</label><select name="provider_id" id="credit_provider_id" required><?php foreach ($providers as $provider) : if ((string)($provider['provider_type'] ?? '') === 'internal') continue; ?><option value="<?php echo (int)$provider['id']; ?>" <?php echo $creditProviderId === (int)$provider['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars((string)$provider['name'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select><label for="provider_credit_amount">Importo (positivo ricarica, negativo storno)</label><input type="number" step="0.0001" name="amount" id="provider_credit_amount" required><label for="provider_credit_description">Descrizione</label><input name="description" id="provider_credit_description" maxlength="500" placeholder="Esempio: ricarica provider luglio"><p class="muted-text">Il credito provider è obbligatorio: se il saldo è zero o insufficiente l’invio viene bloccato. Il costo d’acquisto viene riservato prima dell’invio e rimborsato automaticamente in caso di errore.</p><div class="form-actions"><input type="submit" value="Registra movimento"></div></form></div></div><?php endif; ?>
+    <?php if (is_super_admin()) : ?><div class="modal-overlay <?php echo $openCreditModal ? 'is-active' : ''; ?>" id="providerCreditModal"><div class="modal-card"><div class="modal-header"><div><p class="eyebrow">Credito provider</p><h3>Ricarica o storno<?php echo $creditProvider ? ' · ' . htmlspecialchars((string)$creditProvider['name'], ENT_QUOTES, 'UTF-8') : ''; ?></h3></div><button type="button" class="modal-close-btn" id="closeProviderCreditModal" aria-label="Chiudi popup">x</button></div><form method="post" class="stacked-form"><?php echo csrf_field(); ?><input type="hidden" name="action" value="adjust_provider_credit"><label for="credit_provider_id">Provider</label><select name="provider_id" id="credit_provider_id" required><?php foreach ($providers as $provider) : ?><option value="<?php echo (int)$provider['id']; ?>" <?php echo $creditProviderId === (int)$provider['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars((string)$provider['name'], ENT_QUOTES, 'UTF-8'); ?></option><?php endforeach; ?></select><label for="provider_credit_amount">Importo (positivo ricarica, negativo storno)</label><input type="number" step="0.0001" name="amount" id="provider_credit_amount" required><label for="provider_credit_description">Descrizione</label><input name="description" id="provider_credit_description" maxlength="500" placeholder="Esempio: ricarica provider luglio"><p class="muted-text">Il credito provider è obbligatorio: se il saldo è zero o insufficiente l’invio viene bloccato. Il costo d’acquisto viene riservato prima dell’invio e rimborsato automaticamente in caso di errore.</p><div class="form-actions"><input type="submit" value="Registra movimento"></div></form></div></div><?php endif; ?>
     <script>
         (function () {
             var modal = document.getElementById('providerModal');

@@ -3,7 +3,6 @@
 class SmsApp {
     private ?PDO $pdo = null;
     private ?CreditManager $creditManager = null;
-    private bool $testLogRetentionApplied = false;
 
     public function __construct(?PDO $pdo = null) {
         $this->pdo = $pdo ?? Connection::connect()->getConn();
@@ -81,27 +80,6 @@ class SmsApp {
                 KEY idx_message_logs_lead_id (lead_id),
                 KEY idx_message_logs_list_id (list_id),
                 KEY idx_message_logs_campaign_id (campaign_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
-            "CREATE TABLE IF NOT EXISTS test_message_logs (
-                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                company_id INT DEFAULT 0,
-                team_id INT DEFAULT 0,
-                user_name VARCHAR(100) DEFAULT '',
-                provider_id INT DEFAULT 0,
-                provider_name VARCHAR(100) DEFAULT '',
-                lead_id INT DEFAULT 0,
-                list_id INT DEFAULT 0,
-                campaign_id INT DEFAULT 0,
-                campaign_run_token CHAR(64) DEFAULT NULL,
-                recipient VARCHAR(100) NOT NULL,
-                message TEXT NOT NULL,
-                status VARCHAR(50) DEFAULT 'pending',
-                response TEXT DEFAULT '',
-                http_code INT DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                KEY idx_test_message_logs_provider (provider_id),
-                KEY idx_test_message_logs_campaign (campaign_id),
-                KEY idx_test_message_logs_created (created_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
             "CREATE TABLE IF NOT EXISTS campaigns (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -197,7 +175,6 @@ class SmsApp {
         $this->ensureColumn('message_logs', 'list_id', "ALTER TABLE message_logs ADD COLUMN list_id INT DEFAULT 0 AFTER lead_id");
         $this->ensureColumn('message_logs', 'campaign_id', "ALTER TABLE message_logs ADD COLUMN campaign_id INT DEFAULT 0 AFTER list_id");
         $this->ensureColumn('message_logs', 'campaign_run_token', "ALTER TABLE message_logs ADD COLUMN campaign_run_token CHAR(64) DEFAULT NULL AFTER campaign_id");
-        $this->ensureColumn('test_message_logs', 'campaign_run_token', "ALTER TABLE test_message_logs ADD COLUMN campaign_run_token CHAR(64) DEFAULT NULL AFTER campaign_id");
         $this->ensureColumn('message_logs', 'created_at', "ALTER TABLE message_logs ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
         $this->ensureColumn('message_logs', 'credit_cost', "ALTER TABLE message_logs ADD COLUMN credit_cost DECIMAL(10,4) DEFAULT 0 AFTER response");
         $this->ensureColumn('message_logs', 'credit_balance_before', "ALTER TABLE message_logs ADD COLUMN credit_balance_before DECIMAL(14,4) DEFAULT 0 AFTER credit_cost");
@@ -215,7 +192,6 @@ class SmsApp {
         $this->ensureIndex('message_logs', 'idx_message_logs_list_id', 'ALTER TABLE message_logs ADD INDEX idx_message_logs_list_id (list_id)');
         $this->ensureIndex('message_logs', 'idx_message_logs_campaign_id', 'ALTER TABLE message_logs ADD INDEX idx_message_logs_campaign_id (campaign_id)');
         $this->ensureIndex('message_logs', 'unique_message_campaign_run_lead', 'ALTER TABLE message_logs ADD UNIQUE INDEX unique_message_campaign_run_lead (campaign_run_token, lead_id)');
-        $this->ensureIndex('test_message_logs', 'unique_test_campaign_run_lead', 'ALTER TABLE test_message_logs ADD UNIQUE INDEX unique_test_campaign_run_lead (campaign_run_token, lead_id)');
         $this->ensureColumn('campaigns', 'provider_id', "ALTER TABLE campaigns ADD COLUMN provider_id INT DEFAULT 0 AFTER name");
         $this->ensureColumn('campaigns', 'company_id', "ALTER TABLE campaigns ADD COLUMN company_id INT DEFAULT 1 AFTER id");
         $this->ensureColumn('campaigns', 'team_id', "ALTER TABLE campaigns ADD COLUMN team_id INT DEFAULT 1 AFTER company_id");
@@ -726,11 +702,11 @@ class SmsApp {
             return [];
         }
         if ((int)($user['provider_access_configured'] ?? 0) !== 1) {
-            $stmt = $this->pdo->prepare("SELECT p.id FROM providers p JOIN company_providers cp ON cp.provider_id = p.id WHERE cp.company_id = :company_id AND p.active = 1 AND p.provider_type <> 'internal'");
+            $stmt = $this->pdo->prepare("SELECT p.id FROM providers p JOIN company_providers cp ON cp.provider_id = p.id WHERE cp.company_id = :company_id AND p.active = 1");
             $stmt->execute([':company_id' => (int)$user['company_id']]);
             return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
         }
-        $stmt = $this->pdo->prepare("SELECT up.provider_id FROM user_providers up JOIN company_providers cp ON cp.provider_id = up.provider_id JOIN providers p ON p.id = up.provider_id WHERE up.user_id = :user_id AND cp.company_id = :company_id AND p.provider_type <> 'internal'");
+        $stmt = $this->pdo->prepare("SELECT up.provider_id FROM user_providers up JOIN company_providers cp ON cp.provider_id = up.provider_id JOIN providers p ON p.id = up.provider_id WHERE up.user_id = :user_id AND cp.company_id = :company_id");
         $stmt->execute([':user_id' => $userId, ':company_id' => (int)$user['company_id']]);
         return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
     }
@@ -744,7 +720,7 @@ class SmsApp {
         $allowedIds = [];
         if ($providerIds) {
             $placeholders = implode(',', array_fill(0, count($providerIds), '?'));
-            $stmt = $this->pdo->prepare("SELECT p.id FROM providers p JOIN company_providers cp ON cp.provider_id = p.id WHERE cp.company_id = ? AND p.provider_type <> 'internal' AND p.id IN ($placeholders)");
+            $stmt = $this->pdo->prepare("SELECT p.id FROM providers p JOIN company_providers cp ON cp.provider_id = p.id WHERE cp.company_id = ? AND p.id IN ($placeholders)");
             $stmt->execute(array_merge([(int)$user['company_id']], $providerIds));
             $allowedIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
         }
@@ -761,7 +737,6 @@ class SmsApp {
         $params = [];
 
         if (!$this->isSuperAdmin()) {
-            $query .= " AND provider_type <> 'internal'";
             $query .= ' AND EXISTS (SELECT 1 FROM company_providers cp WHERE cp.company_id = :company_id AND cp.provider_id = providers.id)';
             $params[':company_id'] = $this->tenantCompanyId();
             if (function_exists('current_user_role') && current_user_role() === 'user') {
@@ -810,13 +785,13 @@ class SmsApp {
         $name = trim((string)($data['name'] ?? ''));
         $endpoint = trim((string)($data['endpoint'] ?? ''));
         $providerType = strtolower(trim((string)($data['provider_type'] ?? 'generic')));
-        $providerType = in_array($providerType, ['generic', 'twilio', 'internal'], true) ? $providerType : 'generic';
-        if ($name === '' || !$this->validProviderEndpoint($endpoint, $providerType === 'internal')) {
+        $providerType = in_array($providerType, ['generic', 'twilio'], true) ? $providerType : 'generic';
+        if ($name === '' || !$this->validProviderEndpoint($endpoint)) {
             return false;
         }
 
         $requestType = strtoupper(trim((string)($data['request_type'] ?? 'GET')));
-        if ($providerType === 'twilio' || $providerType === 'internal') {
+        if ($providerType === 'twilio') {
             $requestType = 'POST';
         }
         $defaultFrom = trim((string)($data['default_from'] ?? ''));
@@ -832,9 +807,6 @@ class SmsApp {
                 return false;
             }
             $apiKey = trim((string)($data['api_key'] ?? '')) !== '' ? trim((string)$data['api_key']) : (string)$existingProvider['api_key'];
-            if ($providerType === 'internal' && strlen($apiKey) < 32) {
-                return false;
-            }
             $stmt = $this->pdo->prepare('UPDATE providers SET company_id = :company_id, name = :name, endpoint = :endpoint, provider_type = :provider_type, username = :username, password = :password, api_key = :api_key, request_type = :request_type, default_from = :default_from, active = :active WHERE id = :id');
             $stmt->execute([
                 ':company_id' => $companyId,
@@ -855,9 +827,6 @@ class SmsApp {
         }
 
         $apiKey = trim((string)($data['api_key'] ?? ''));
-        if ($providerType === 'internal' && strlen($apiKey) < 32) {
-            return false;
-        }
         $stmt = $this->pdo->prepare('INSERT INTO providers (company_id, name, endpoint, provider_type, username, password, api_key, request_type, default_from, active) VALUES (:company_id, :name, :endpoint, :provider_type, :username, :password, :api_key, :request_type, :default_from, :active)');
         $stmt->execute([
             ':company_id' => $companyId,
@@ -896,7 +865,6 @@ class SmsApp {
         $query = 'SELECT * FROM providers WHERE id = :id';
         $params = [':id' => $id];
         if (!$this->isSuperAdmin()) {
-            $query .= " AND provider_type <> 'internal'";
             $query .= ' AND EXISTS (SELECT 1 FROM company_providers cp WHERE cp.company_id = :company_id AND cp.provider_id = providers.id)';
             $params[':company_id'] = $this->tenantCompanyId();
             if (function_exists('current_user_role') && current_user_role() === 'user') {
@@ -970,27 +938,6 @@ class SmsApp {
             unset($log);
         }
         return $logs;
-    }
-
-    public function getInternalTestLogs(int $limit = 100): array {
-        if (!$this->isSuperAdmin()) {
-            return [];
-        }
-        $limit = max(1, min($limit, 500));
-        $stmt = $this->pdo->query('SELECT * FROM test_message_logs ORDER BY id DESC LIMIT ' . $limit);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function getInternalTestStats(): array {
-        if (!$this->isSuperAdmin()) {
-            return ['total' => 0, 'sent' => 0, 'failed' => 0];
-        }
-        $row = $this->pdo->query("SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) AS sent, SUM(CASE WHEN status <> 'sent' THEN 1 ELSE 0 END) AS failed FROM test_message_logs")->fetch(PDO::FETCH_ASSOC) ?: [];
-        return [
-            'total' => (int)($row['total'] ?? 0),
-            'sent' => (int)($row['sent'] ?? 0),
-            'failed' => (int)($row['failed'] ?? 0),
-        ];
     }
 
     public function getLogStats(array $filters = []): array {
@@ -1254,20 +1201,6 @@ class SmsApp {
             return ['success' => false, 'can_start' => false, 'message' => 'Scrivi il messaggio per calcolare la spesa prevista.', 'expected_cost' => 0.0];
         }
 
-        if ($this->providerType($providerId) === 'internal') {
-            if (!$this->isSuperAdmin()) {
-                return ['success' => false, 'can_start' => false, 'message' => 'Il provider di test è riservato al Super Admin.', 'expected_cost' => 0.0];
-            }
-            return [
-                'success' => true,
-                'can_start' => true,
-                'message' => 'Modalità test: nessun credito reale verrà utilizzato.',
-                'expected_cost' => 0.0,
-                'test_mode' => true,
-                'recipient_count' => count($this->getLeadsByListId($listId)),
-            ];
-        }
-
         $leads = $this->getLeadsByListId($listId);
         return $this->credits()->estimateCampaign((int)$list['company_id'], $providerId, $leads, $message);
     }
@@ -1385,7 +1318,7 @@ class SmsApp {
                 $normalizeTotal = $this->pdo->prepare('UPDATE campaigns SET job_total = job_processed, job_updated_at = NOW() WHERE id = :id AND job_token = :run_token');
                 $normalizeTotal->execute([':id' => $id, ':run_token' => (string)$campaign['job_token']]);
             }
-            $logTable = $this->providerType((int)$campaign['provider_id']) === 'internal' ? 'test_message_logs' : 'message_logs';
+            $logTable = 'message_logs';
             $jobUser = trim((string)($campaign['job_user'] ?? '')) !== '' ? (string)$campaign['job_user'] : (string)$campaign['created_by'];
 
             foreach ($leads as $lead) {
@@ -1746,9 +1679,6 @@ class SmsApp {
         }
 
         $providerType = strtolower((string)($provider['provider_type'] ?? 'generic'));
-        if ($providerType === 'internal' && !$this->isSuperAdmin()) {
-            return ['status' => 'failed', 'response' => 'Provider di test riservato al Super Admin', 'provider_name' => $provider['name'], 'company_id' => (int)$provider['company_id']];
-        }
         $sender = $from !== '' ? $from : (string)$provider['default_from'];
 
         if ($providerType === 'twilio') {
@@ -1791,28 +1721,6 @@ class SmsApp {
         curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
         curl_setopt($ch, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
 
-        if ($providerType === 'internal') {
-            $internalHost = strtolower((string)(parse_url((string)$url, PHP_URL_HOST) ?: ''));
-            $configuredIp = trim((string)getenv('SMS_INTERNAL_PROVIDER_RESOLVE_IP'));
-            $resolveIp = $configuredIp !== '' ? $configuredIp : '82.77.19.48';
-            $publicIpFlags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
-            if ($internalHost !== 'provtest.book-my.eu'
-                || filter_var($resolveIp, FILTER_VALIDATE_IP, $publicIpFlags) === false) {
-                curl_close($ch);
-                return [
-                    'status' => 'failed',
-                    'response' => 'Configurazione rete del provider interno non valida',
-                    'raw_response' => '',
-                    'http_code' => 0,
-                    'provider_name' => $provider['name'],
-                    'company_id' => (int)$provider['company_id'],
-                ];
-            }
-            // Il NAS non dispone sempre della risoluzione DNS pubblica: il pin mantiene SNI,
-            // hostname e verifica TLS, evitando di disabilitare i controlli del certificato.
-            curl_setopt($ch, CURLOPT_RESOLVE, ['provtest.book-my.eu:443:' . $resolveIp]);
-        }
-
         if ($providerType === 'twilio') {
             curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
             curl_setopt($ch, CURLOPT_USERPWD, (string)$provider['username'] . ':' . (string)$provider['password']);
@@ -1847,7 +1755,7 @@ class SmsApp {
         $rawResponse = is_string($responseBody) ? $responseBody : ($curlError !== '' ? $curlError : 'Nessuna risposta');
         $displayResponse = $providerType === 'twilio'
             ? $this->simplifyTwilioResponse($rawResponse, $httpCode)
-            : ($providerType === 'internal' ? $this->simplifyInternalProviderResponse($rawResponse, $httpCode) : $this->simplifyProviderResponse($rawResponse));
+            : $this->simplifyProviderResponse($rawResponse);
 
         return [
             'status' => $success ? 'sent' : 'failed',
@@ -1880,21 +1788,7 @@ class SmsApp {
         return 'Risposta Twilio non riconosciuta';
     }
 
-    private function simplifyInternalProviderResponse(string $response, int $httpCode): string {
-        $data = json_decode($response, true);
-        if (!is_array($data)) {
-            return 'TEST HTTP ' . $httpCode . ': ' . $this->simplifyProviderResponse($response);
-        }
-        $status = strtoupper(trim((string)($data['status'] ?? 'unknown')));
-        $message = trim((string)($data['message'] ?? 'Risposta senza descrizione'));
-        $id = trim((string)($data['id'] ?? ''));
-        return 'TEST ' . $status . ': ' . $message . ($id !== '' ? ' · ' . $id : '');
-    }
-
     public function sendAndLog(int $providerId, string $to, string $message, string $from, string $userName, array $context = []): array {
-        if ($this->providerType($providerId) === 'internal') {
-            return $this->sendInternalTestAndLog($providerId, $to, $message, $from, $userName, $context);
-        }
         $recipient = $this->normalizePhone($to);
         $companyId = (int)($context['company_id'] ?? $this->tenantCompanyId());
         $providerContacted = false;
@@ -1998,76 +1892,6 @@ class SmsApp {
             $visibleResult['response'] = (string)($reservation['public_message'] ?? $this->publicBillingMessage((string)($result['response'] ?? '')));
         }
         return $visibleResult + ['recipient' => $recipient];
-    }
-
-    private function sendInternalTestAndLog(int $providerId, string $to, string $message, string $from, string $userName, array $context): array {
-        if (!$this->isSuperAdmin()) {
-            SystemLogger::record('warning', 'security', 'test_provider.denied', 'Tentativo di utilizzo del provider fittizio da un utente operativo.', [
-                'provider_id' => $providerId,
-                'user_id' => function_exists('current_user_id') ? current_user_id() : 0,
-            ], $userName);
-            return ['status' => 'failed', 'response' => 'Provider di test riservato al Super Admin', 'recipient' => $this->normalizePhone($to), 'test_mode' => true];
-        }
-
-        $provider = $this->getProviderById($providerId);
-        $recipient = $this->normalizePhone($to);
-        if (!$provider || (string)($provider['provider_type'] ?? '') !== 'internal') {
-            return ['status' => 'failed', 'response' => 'Provider di test non trovato', 'recipient' => $recipient, 'test_mode' => true];
-        }
-        $result = $recipient === ''
-            ? ['status' => 'failed', 'response' => 'Numero non valido', 'provider_name' => (string)$provider['name'], 'http_code' => 0]
-            : $this->sendMessage($providerId, $recipient, $message, $from);
-
-        $stmt = $this->pdo->prepare('INSERT INTO test_message_logs (company_id, team_id, user_name, provider_id, provider_name, lead_id, list_id, campaign_id, campaign_run_token, recipient, message, status, response, http_code) VALUES (:company_id, :team_id, :user_name, :provider_id, :provider_name, :lead_id, :list_id, :campaign_id, :campaign_run_token, :recipient, :message, :status, :response, :http_code)');
-        $stmt->execute([
-            ':company_id' => (int)($context['company_id'] ?? $this->tenantCompanyId()),
-            ':team_id' => (int)($context['team_id'] ?? $this->tenantTeamId()),
-            ':user_name' => $userName,
-            ':provider_id' => $providerId,
-            ':provider_name' => (string)($result['provider_name'] ?? $provider['name']),
-            ':lead_id' => (int)($context['lead_id'] ?? 0),
-            ':list_id' => (int)($context['list_id'] ?? 0),
-            ':campaign_id' => (int)($context['campaign_id'] ?? 0),
-            ':campaign_run_token' => ($context['campaign_run_token'] ?? '') !== '' ? (string)$context['campaign_run_token'] : null,
-            ':recipient' => $recipient !== '' ? $recipient : $to,
-            ':message' => $message,
-            ':status' => (string)($result['status'] ?? 'failed'),
-            ':response' => (string)($result['response'] ?? 'Nessuna risposta'),
-            ':http_code' => (int)($result['http_code'] ?? 0),
-        ]);
-        $this->applyTestLogRetention();
-
-        $sent = (string)($result['status'] ?? 'failed') === 'sent';
-        SystemLogger::record($sent ? 'info' : 'warning', 'test_provider', $sent ? 'message.simulated' : 'message.simulation_failed', $sent ? 'Messaggio simulato con successo.' : 'Simulazione messaggio fallita.', [
-            'provider_id' => $providerId,
-            'provider_name' => (string)$provider['name'],
-            'recipient' => $recipient !== '' ? $recipient : $to,
-            'status' => (string)($result['status'] ?? 'failed'),
-            'http_code' => (int)($result['http_code'] ?? 0),
-            'response' => (string)($result['response'] ?? ''),
-            'campaign_id' => (int)($context['campaign_id'] ?? 0),
-            'billing_applied' => false,
-        ], $userName);
-
-        return $result + ['recipient' => $recipient, 'test_mode' => true, 'billing_applied' => false];
-    }
-
-    private function providerType(int $providerId): string {
-        if ($providerId <= 0) {
-            return '';
-        }
-        $stmt = $this->pdo->prepare('SELECT provider_type FROM providers WHERE id = :id LIMIT 1');
-        $stmt->execute([':id' => $providerId]);
-        return strtolower((string)$stmt->fetchColumn());
-    }
-
-    private function applyTestLogRetention(): void {
-        if ($this->testLogRetentionApplied) {
-            return;
-        }
-        $this->testLogRetentionApplied = true;
-        $days = max(1, min(3650, (int)(getenv('SMS_TEST_LOG_RETENTION_DAYS') ?: 30)));
-        $this->pdo->exec('DELETE FROM test_message_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ' . $days . ' DAY)');
     }
 
     private function publicBillingMessage(string $message): string {
@@ -2343,7 +2167,7 @@ class SmsApp {
         ];
     }
 
-    private function validProviderEndpoint(string $endpoint, bool $internalTestProvider = false): bool {
+    private function validProviderEndpoint(string $endpoint): bool {
         if (filter_var($endpoint, FILTER_VALIDATE_URL) === false || strlen($endpoint) > 500) {
             return false;
         }
@@ -2358,14 +2182,6 @@ class SmsApp {
         }
         if (in_array($host, ['localhost', 'localhost.localdomain'], true) || str_ends_with($host, '.localhost')) {
             return false;
-        }
-        if ($internalTestProvider) {
-            $path = rtrim((string)($parts['path'] ?? ''), '/');
-            $port = isset($parts['port']) ? (int)$parts['port'] : 443;
-            return $scheme === 'https'
-                && $host === 'provtest.book-my.eu'
-                && $port === 443
-                && $path === '/api/v1/messages';
         }
         $allowPrivate = strtolower((string)getenv('SMS_PROVIDER_ALLOW_PRIVATE')) === 'true';
         $addresses = filter_var($host, FILTER_VALIDATE_IP) !== false ? [$host] : array_values(array_unique(array_filter([

@@ -34,8 +34,7 @@ $sensitivePaths = @(
     '/.git/HEAD', '/.git/config', '/.htaccess', '/web.config', '/classes/config.local.php',
     '/storage/config.local.php', '/storage/install.lock', '/storage/.installing.lock',
     '/app/Core/Router.php', '/inc/option.php', '/chrome-extension.pem', '/localhost.sql', '/docs/SECURITY.md',
-    '/deployment/lighttpd-security.conf.example', '/deployment/openresty-security.conf.example', '/scripts/security-check.ps1',
-    '/internalprovider/README.md', '/internalprovider/src/ProviderSimulator.php', '/internalprovider/storage/messages.ndjson'
+    '/deployment/lighttpd-security.conf.example', '/deployment/openresty-security.conf.example', '/scripts/security-check.ps1'
 )
 foreach ($path in $sensitivePaths) {
     $status = Invoke-CurlText @('--silent', '--show-error', '--output', 'NUL', '--write-out', '%{http_code}', '--max-time', '15', "https://$HostName$path")

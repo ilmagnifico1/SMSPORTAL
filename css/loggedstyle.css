@@ -806,7 +806,6 @@ textarea { min-height: 188px; resize: vertical; background: var(--surface-soft);
 }
 .provider-tag.twilio { color: #6045cf; background: #eee9ff; }
 .provider-tag.generic { color: var(--primary-dark); background: #e7f1ff; }
-.provider-tag.internal { color: #04111f; border-color: #49e6a8; background: #49e6a8; box-shadow: 0 0 18px rgba(73,230,168,.2); }
 
 .actions-cell {
     display: table-cell;
