@@ -19,6 +19,7 @@ SMS Portal è un’applicazione web PHP per gestire l’invio di SMS singoli e c
 ## Funzionalità principali
 
 - Invio di SMS singoli e campagne verso liste importate da CSV.
+- Campagne asincrone con avanzamento, conteggi, tempo stimato, arresto, ripresa e riavvio dalla prima riga.
 - Gestione multi-azienda con team, utenti, ruoli e permessi.
 - Configurazione di più provider SMS e assegnazione alle aziende.
 - Crediti aziendali e provider, ricariche e storico dei movimenti.

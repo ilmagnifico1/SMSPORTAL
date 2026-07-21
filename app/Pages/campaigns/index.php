@@ -97,7 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
             'campaign_id' => (int)($_POST['id'] ?? 0),
             'campaign_name' => (string)($campaignToDelete['name'] ?? ''),
         ]);
-    } elseif (($_POST['action'] ?? '') === 'run_campaign') {
+    } elseif (in_array((string)($_POST['action'] ?? ''), ['run_campaign', 'resume_campaign', 'restart_campaign'], true)) {
+        $campaignAction = (string)$_POST['action'];
         $campaignToRun = $app->getCampaignById((int)($_POST['id'] ?? 0));
         $campaignEstimate = $campaignToRun ? $app->estimateSavedCampaign((int)$campaignToRun['id']) : [];
         if (empty($campaignEstimate['can_start'])) {
@@ -119,9 +120,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
                 'action_type' => 'campaign', 'campaign_id' => (int)($_POST['id'] ?? 0),
             ]);
         } else {
-            $runResult = $app->queueCampaign((int)($_POST['id'] ?? 0), (string)$_SESSION['logged']);
+            $runResult = $campaignAction === 'resume_campaign'
+                ? $app->resumeCampaign((int)($_POST['id'] ?? 0), (string)$_SESSION['logged'])
+                : $app->queueCampaign((int)($_POST['id'] ?? 0), (string)$_SESSION['logged']);
             $feedback = (string)($runResult['message'] ?? '');
-            system_log(!empty($runResult['success']) ? 'info' : 'error', 'campaign', !empty($runResult['success']) ? 'campaign.queued' : 'campaign.failed', $feedback, [
+            $successEvent = $campaignAction === 'resume_campaign' ? 'campaign.resumed' : ($campaignAction === 'restart_campaign' ? 'campaign.restarted' : 'campaign.queued');
+            system_log(!empty($runResult['success']) ? 'info' : 'error', 'campaign', !empty($runResult['success']) ? $successEvent : 'campaign.failed', $feedback, [
                 'company_id' => (int)($campaignToRun['company_id'] ?? current_company_id()),
                 'team_id' => (int)($campaignToRun['team_id'] ?? current_team_id()),
                 'campaign_id' => (int)($_POST['id'] ?? 0),
@@ -132,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'run_campaign'
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string)($_POST['action'] ?? ''), ['run_campaign', 'resume_campaign', 'restart_campaign'], true)
     && strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest') {
     header('Content-Type: application/json; charset=UTF-8');
     header('Cache-Control: no-store');
@@ -167,7 +171,7 @@ $companies = is_super_admin() ? $app->getCompanies() : [];
     <link rel="icon" type="image/png" sizes="32x32" href="imgs/favicon-32.png?v=2">
     <link rel="apple-touch-icon" href="imgs/favicon-180.png?v=2">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/loggedstyle.css?v=20260720-queue2">
+    <link rel="stylesheet" href="css/loggedstyle.css?v=20260721-campaign-resume1">
 </head>
 <body class="page-campaigns">
     <div id="wrapper" class="dashboard-shell">
@@ -289,7 +293,9 @@ $companies = is_super_admin() ? $app->getCompanies() : [];
                                 <?php $campaignProvider = $app->getProviderById((int)$campaign['provider_id']); ?>
                                 <?php $campaignList = $app->getListById((int)($campaign['list_id'] ?? 0)); ?>
                                 <?php $jobActive = in_array((string)($campaign['last_status'] ?? ''), ['queued', 'sending'], true) && trim((string)($campaign['job_token'] ?? '')) !== ''; ?>
-                                <?php $jobTotal = max(0, (int)($campaign['job_total'] ?? 0)); $jobProcessed = max(0, min($jobTotal, (int)($campaign['job_processed'] ?? 0))); $jobPercent = $jobTotal > 0 ? (int)floor(($jobProcessed / $jobTotal) * 100) : 0; ?>
+                                <?php $jobTotal = max(0, (int)($campaign['job_total'] ?? 0)); $jobProcessed = max(0, min($jobTotal, (int)($campaign['job_processed'] ?? 0))); $jobSent = max(0, (int)($campaign['job_sent'] ?? 0)); $jobFailed = max(0, (int)($campaign['job_failed'] ?? 0)); $jobPercent = $jobTotal > 0 ? (int)floor(($jobProcessed / $jobTotal) * 100) : 0; ?>
+                                <?php $jobCanResume = (string)($campaign['last_status'] ?? '') === 'cancelled' && trim((string)($campaign['job_token'] ?? '')) !== '' && $jobProcessed < $jobTotal; ?>
+                                <?php $jobProgress = $jobActive ? $app->getCampaignProgress((int)$campaign['id']) : []; ?>
                                 <tr data-campaign-row data-campaign-id="<?php echo (int)$campaign['id']; ?>" data-job-active="<?php echo $jobActive ? '1' : '0'; ?>">
                                     <td><?php echo htmlspecialchars((string)$campaign['name'], ENT_QUOTES, 'UTF-8'); ?></td>
                                     <?php if (is_super_admin()) : ?><td><?php $companyName = '-'; foreach ($companies as $company) { if ((int)$company['id'] === (int)$campaign['company_id']) { $companyName = (string)$company['name']; break; } } echo htmlspecialchars($companyName, ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
@@ -298,7 +304,12 @@ $companies = is_super_admin() ? $app->getCompanies() : [];
                                     <?php $campaignEstimate = $campaignEstimates[(int)$campaign['id']] ?? []; ?>
                                     <td><strong>€ <?php echo number_format((float)($campaignEstimate['expected_cost'] ?? 0), 4, ',', '.'); ?></strong><br><span class="status-pill <?php echo !empty($campaignEstimate['can_start']) ? 'sent' : 'failed'; ?>"><?php echo !empty($campaignEstimate['can_start']) ? 'Credito sufficiente' : 'Bloccata'; ?></span></td>
                                     <td><?php echo htmlspecialchars((string)($campaign['sender'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                    <td class="wrap-text" data-campaign-result><?php echo htmlspecialchars((string)($campaign['last_result'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                    <td class="wrap-text" data-campaign-result>
+                                        <span data-campaign-result-text><?php echo $jobActive ? '' : htmlspecialchars((string)($campaign['last_result'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                        <span class="sms-sending-animation" data-sending-animation aria-hidden="true" <?php echo !$jobActive ? 'hidden' : ''; ?>>
+                                            <i class="sms-envelope"></i><i class="sms-envelope"></i><i class="sms-envelope"></i>
+                                        </span>
+                                    </td>
                                     <td><?php echo htmlspecialchars((string)($campaign['last_sent_at'] ?? '-'), ENT_QUOTES, 'UTF-8'); ?></td>
                                     <td class="actions-cell">
                                         <?php if (user_can('edit_campaigns')) : ?><a href="<?php echo app_url('campaigns', ['edit' => (int)$campaign['id']]); ?>" class="action-btn">Modifica</a><?php endif; ?>
@@ -307,12 +318,15 @@ $companies = is_super_admin() ? $app->getCompanies() : [];
                                             <input type="hidden" name="action" value="run_campaign">
                                             <input type="hidden" name="id" value="<?php echo (int)$campaign['id']; ?>">
                                             <input type="hidden" name="authorization_id" value="">
-                                            <button type="submit" class="action-btn" data-can-start="<?php echo !empty($campaignEstimate['can_start']) ? '1' : '0'; ?>" <?php echo empty($campaignEstimate['can_start']) || $jobActive ? 'disabled' : ''; ?> title="<?php echo htmlspecialchars((string)($campaignEstimate['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">Invia</button>
+                                            <button type="submit" class="action-btn" data-start-campaign data-campaign-operation="run_campaign" data-can-start="<?php echo !empty($campaignEstimate['can_start']) ? '1' : '0'; ?>" <?php echo empty($campaignEstimate['can_start']) || $jobActive ? 'disabled' : ''; ?> <?php echo $jobCanResume ? 'hidden' : ''; ?> title="<?php echo htmlspecialchars((string)($campaignEstimate['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">Invia</button>
+                                            <button type="submit" class="action-btn campaign-resume-btn" data-resume-campaign data-campaign-operation="resume_campaign" <?php echo !$jobCanResume ? 'hidden' : ''; ?>>Riprendi</button>
+                                            <button type="submit" class="action-btn campaign-restart-btn" data-restart-campaign data-campaign-operation="restart_campaign" <?php echo !$jobCanResume ? 'hidden' : ''; ?>>Ricomincia</button>
                                         </form>
                                         <div class="campaign-job-progress" data-campaign-progress <?php echo !$jobActive && $jobTotal <= 0 ? 'hidden' : ''; ?>>
                                             <div class="campaign-progress-track"><span style="width:<?php echo $jobPercent; ?>%"></span></div>
                                             <strong data-progress-label><?php echo $jobPercent; ?>%</strong>
-                                            <small data-progress-remaining><?php echo max(0, $jobTotal - $jobProcessed); ?> rimasti</small>
+                                            <small data-progress-remaining><?php echo number_format($jobSent, 0, ',', '.'); ?> inviati<?php echo $jobFailed > 0 ? ' · ' . number_format($jobFailed, 0, ',', '.') . ' falliti' : ''; ?> · <?php echo number_format(max(0, $jobTotal - $jobProcessed), 0, ',', '.'); ?> rimasti su <?php echo number_format($jobTotal, 0, ',', '.'); ?></small>
+                                            <small class="campaign-progress-eta" data-progress-eta <?php echo !$jobActive ? 'hidden' : ''; ?>><?php echo htmlspecialchars((string)($jobProgress['eta_label'] ?? 'Tempo stimato: calcolo in corso...'), ENT_QUOTES, 'UTF-8'); ?></small>
                                             <button type="button" class="campaign-cancel-btn" data-cancel-campaign <?php echo !$jobActive ? 'hidden' : ''; ?>>Ferma</button>
                                         </div>
                                         <?php if (user_can('delete_campaigns')) : ?><form method="post" onsubmit="return confirm('Eliminare questa campagna?');">
@@ -455,19 +469,42 @@ $companies = is_super_admin() ? $app->getCompanies() : [];
             function updateProgress(row, progress) {
                 if (!row || !progress) return;
                 var panel = row.querySelector('[data-campaign-progress]');
-                var button = row.querySelector('.campaign-run-form button[type="submit"]');
-                var result = row.querySelector('[data-campaign-result]');
+                var startButton = row.querySelector('[data-start-campaign]');
+                var resumeButton = row.querySelector('[data-resume-campaign]');
+                var restartButton = row.querySelector('[data-restart-campaign]');
+                var result = row.querySelector('[data-campaign-result-text]');
+                var sendingAnimation = row.querySelector('[data-sending-animation]');
                 var cancelButton = row.querySelector('[data-cancel-campaign]');
+                var eta = row.querySelector('[data-progress-eta]');
                 var percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
+                var formatCount = function (value) { return Math.max(0, Number(value || 0)).toLocaleString('it-IT'); };
                 if (panel) {
                     panel.hidden = false;
                     panel.querySelector('.campaign-progress-track span').style.width = percent + '%';
                     panel.querySelector('[data-progress-label]').textContent = percent + '%';
-                    panel.querySelector('[data-progress-remaining]').textContent = Number(progress.remaining || 0) + ' rimasti su ' + Number(progress.total || 0);
+                    var deliverySummary = formatCount(progress.sent) + ' inviati';
+                    if (Number(progress.failed || 0) > 0) deliverySummary += ' · ' + formatCount(progress.failed) + ' falliti';
+                    panel.querySelector('[data-progress-remaining]').textContent = deliverySummary + ' · ' + formatCount(progress.remaining) + ' rimasti su ' + formatCount(progress.total);
                 }
-                if (result && progress.message) result.textContent = progress.message;
+                if (eta) {
+                    eta.textContent = progress.eta_label || '';
+                    eta.hidden = !progress.active || !progress.eta_label;
+                }
+                if (result) result.textContent = progress.active ? '' : (progress.message || '');
+                if (sendingAnimation) sendingAnimation.hidden = !progress.active;
                 row.dataset.jobActive = progress.active ? '1' : '0';
-                if (button) button.disabled = Boolean(progress.active) || button.dataset.canStart !== '1';
+                if (startButton) {
+                    startButton.hidden = Boolean(progress.can_resume);
+                    startButton.disabled = Boolean(progress.active) || startButton.dataset.canStart !== '1';
+                }
+                if (resumeButton) {
+                    resumeButton.hidden = !progress.can_resume;
+                    resumeButton.disabled = !progress.can_resume;
+                }
+                if (restartButton) {
+                    restartButton.hidden = !progress.can_resume;
+                    restartButton.disabled = !progress.can_resume;
+                }
                 if (cancelButton) cancelButton.hidden = !progress.active;
             }
 
@@ -504,13 +541,23 @@ $companies = is_super_admin() ? $app->getCompanies() : [];
             }
 
             document.querySelectorAll('.campaign-run-form[data-async-submit="true"]').forEach(function (form) {
+                form.querySelectorAll('[data-campaign-operation]').forEach(function (operationButton) {
+                    operationButton.addEventListener('click', function (event) {
+                        if (operationButton.dataset.campaignOperation === 'restart_campaign'
+                            && !window.confirm('Ricominciare dalla prima riga? I destinatari gia elaborati riceveranno nuovamente il messaggio.')) {
+                            event.preventDefault();
+                            return;
+                        }
+                        form.querySelector('[name="action"]').value = operationButton.dataset.campaignOperation;
+                    });
+                });
                 form.addEventListener('submit', function (event) {
                     var authorization = form.querySelector('[name="authorization_id"]');
                     if (!authorization || !authorization.value) return;
                     event.preventDefault();
                     var row = form.closest('[data-campaign-row]');
-                    var button = form.querySelector('button[type="submit"]');
-                    if (button) button.disabled = true;
+                    var submitButtons = form.querySelectorAll('button[type="submit"]');
+                    submitButtons.forEach(function (button) { button.disabled = true; });
                     fetch(campaignUrl, {
                         method: 'POST',
                         credentials: 'same-origin',
@@ -525,10 +572,11 @@ $companies = is_super_admin() ? $app->getCompanies() : [];
                     }).then(function (data) {
                         updateProgress(row, data.progress || data);
                         authorization.value = '';
+                        form.querySelector('[name="action"]').value = 'run_campaign';
                         processNextBatch(row);
                     }).catch(function (error) {
                         authorization.value = '';
-                        if (button) button.disabled = false;
+                        submitButtons.forEach(function (button) { button.disabled = false; });
                         var status = form.querySelector('.device-auth-status');
                         if (status) {
                             status.hidden = false;

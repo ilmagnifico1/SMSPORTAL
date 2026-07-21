@@ -48,6 +48,8 @@ CREATE TABLE `campaigns` (
   `job_token` char(64) DEFAULT NULL,
   `job_lock_token` char(32) DEFAULT NULL,
   `job_lock_until` datetime DEFAULT NULL,
+  `job_started_at` datetime DEFAULT NULL,
+  `job_started_processed` int(11) NOT NULL DEFAULT 0,
   `job_updated_at` datetime DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),

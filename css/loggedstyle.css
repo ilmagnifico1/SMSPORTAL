@@ -1020,6 +1020,55 @@ textarea { min-height: 188px; resize: vertical; background: var(--surface-soft);
 .campaign-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1672f3, #635bff); transition: width .25s ease; }
 .campaign-job-progress strong { font-size: 13px; }
 .campaign-job-progress small { grid-column: 1 / -1; color: #5d7090; font-size: 11px; }
+.campaign-job-progress .campaign-progress-eta { color: #17345f; font-weight: 700; }
+.campaign-progress-eta[hidden] { display: none; }
 .campaign-cancel-btn { grid-column: 1 / -1; min-height: 30px; padding: 5px 10px; border: 1px solid #d84555; border-radius: 7px; background: #fff; color: #c62f40; font-weight: 700; cursor: pointer; }
 .campaign-cancel-btn:hover { background: #fff0f2; }
 .campaign-cancel-btn[hidden] { display: none; }
+.actions-cell .action-btn[hidden] { display: none; }
+.actions-cell .campaign-resume-btn { background: linear-gradient(135deg, #087f5b, #20a779); }
+.actions-cell .campaign-restart-btn { background: linear-gradient(135deg, #c46a08, #e99a24); }
+
+.sms-sending-animation {
+    position: relative;
+    display: inline-block;
+    width: 118px;
+    height: 30px;
+    overflow: hidden;
+    vertical-align: middle;
+}
+.sms-sending-animation[hidden] { display: none; }
+.sms-envelope {
+    position: absolute;
+    top: 7px;
+    left: 0;
+    width: 18px;
+    height: 13px;
+    border: 2px solid #176ff2;
+    border-radius: 3px;
+    background: #fff;
+    opacity: 0;
+    box-shadow: 0 2px 5px rgba(23, 111, 242, .18);
+    will-change: transform, opacity;
+    animation: sms-envelope-send 2.1s linear infinite;
+}
+.sms-envelope::before,
+.sms-envelope::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    width: 10px;
+    height: 2px;
+    background: #176ff2;
+}
+.sms-envelope::before { left: 0; transform: rotate(35deg); transform-origin: left center; }
+.sms-envelope::after { right: 0; transform: rotate(-35deg); transform-origin: right center; }
+.sms-envelope:nth-child(2) { animation-delay: .7s; }
+.sms-envelope:nth-child(3) { animation-delay: 1.4s; }
+
+@keyframes sms-envelope-send {
+    0% { opacity: 0; transform: translateX(-22px) scale(.78); }
+    12% { opacity: 1; }
+    82% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(116px) scale(1); }
+}

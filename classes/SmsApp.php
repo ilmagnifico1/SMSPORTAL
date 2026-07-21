@@ -103,6 +103,8 @@ class SmsApp {
                 job_token CHAR(64) DEFAULT NULL,
                 job_lock_token CHAR(32) DEFAULT NULL,
                 job_lock_until DATETIME NULL,
+                job_started_at DATETIME NULL,
+                job_started_processed INT NOT NULL DEFAULT 0,
                 job_updated_at DATETIME NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
@@ -213,7 +215,9 @@ class SmsApp {
         $this->ensureColumn('campaigns', 'job_token', "ALTER TABLE campaigns ADD COLUMN job_token CHAR(64) DEFAULT NULL AFTER job_user");
         $this->ensureColumn('campaigns', 'job_lock_token', "ALTER TABLE campaigns ADD COLUMN job_lock_token CHAR(32) DEFAULT NULL AFTER job_token");
         $this->ensureColumn('campaigns', 'job_lock_until', "ALTER TABLE campaigns ADD COLUMN job_lock_until DATETIME NULL AFTER job_lock_token");
-        $this->ensureColumn('campaigns', 'job_updated_at', "ALTER TABLE campaigns ADD COLUMN job_updated_at DATETIME NULL AFTER job_lock_until");
+        $this->ensureColumn('campaigns', 'job_started_at', "ALTER TABLE campaigns ADD COLUMN job_started_at DATETIME NULL AFTER job_lock_until");
+        $this->ensureColumn('campaigns', 'job_started_processed', "ALTER TABLE campaigns ADD COLUMN job_started_processed INT NOT NULL DEFAULT 0 AFTER job_started_at");
+        $this->ensureColumn('campaigns', 'job_updated_at', "ALTER TABLE campaigns ADD COLUMN job_updated_at DATETIME NULL AFTER job_started_processed");
         $this->ensureColumn('campaigns', 'created_at', "ALTER TABLE campaigns ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
         $this->ensureColumn('sms_lists', 'csv_path', "ALTER TABLE sms_lists ADD COLUMN csv_path VARCHAR(500) DEFAULT '' AFTER name");
         $this->ensureColumn('sms_lists', 'company_id', "ALTER TABLE sms_lists ADD COLUMN company_id INT DEFAULT 1 AFTER id");
@@ -1238,7 +1242,7 @@ class SmsApp {
 
         try {
             $this->pdo->beginTransaction();
-            $lock = $this->pdo->prepare('SELECT last_status, job_token FROM campaigns WHERE id = :id FOR UPDATE');
+            $lock = $this->pdo->prepare('SELECT last_status, job_token, job_lock_token, job_lock_until FROM campaigns WHERE id = :id FOR UPDATE');
             $lock->execute([':id' => $id]);
             $current = $lock->fetch(PDO::FETCH_ASSOC) ?: [];
             if (in_array((string)($current['last_status'] ?? ''), ['queued', 'sending'], true)
@@ -1246,8 +1250,13 @@ class SmsApp {
                 $this->pdo->rollBack();
                 return ['success' => true, 'message' => 'Campagna gia in esecuzione.', 'progress' => $this->getCampaignProgress($id)];
             }
+            $lockUntil = !empty($current['job_lock_until']) ? strtotime((string)$current['job_lock_until']) : 0;
+            if (trim((string)($current['job_lock_token'] ?? '')) !== '' && $lockUntil > time()) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'message' => 'Arresto dell ultimo invio in completamento. Riprova tra pochi secondi.'];
+            }
             $runToken = bin2hex(random_bytes(32));
-            $stmt = $this->pdo->prepare("UPDATE campaigns SET last_status = 'queued', last_result = 'Invio accodato', last_sent_at = NOW(), job_total = :total, job_processed = 0, job_sent = 0, job_failed = 0, job_cursor = 0, job_user = :job_user, job_token = :job_token, job_lock_token = NULL, job_lock_until = NULL, job_updated_at = NOW() WHERE id = :id");
+            $stmt = $this->pdo->prepare("UPDATE campaigns SET last_status = 'queued', last_result = 'Invio accodato', last_sent_at = NOW(), job_total = :total, job_processed = 0, job_sent = 0, job_failed = 0, job_cursor = 0, job_user = :job_user, job_token = :job_token, job_lock_token = NULL, job_lock_until = NULL, job_started_at = NOW(), job_started_processed = 0, job_updated_at = NOW() WHERE id = :id");
             $stmt->execute([':total' => $total, ':job_user' => $userName, ':job_token' => $runToken, ':id' => $id]);
             $this->pdo->commit();
         } catch (Throwable $exception) {
@@ -1276,9 +1285,45 @@ class SmsApp {
         $processed = (int)($campaign['job_processed'] ?? 0);
         $total = (int)($campaign['job_total'] ?? 0);
         $message = 'Invio fermato. Elaborati: ' . $processed . ' su ' . $total . '.';
-        $stmt = $this->pdo->prepare("UPDATE campaigns SET last_status = 'cancelled', last_result = :result, job_lock_until = NULL, job_updated_at = NOW() WHERE id = :id AND last_status IN ('queued', 'sending') AND job_token = :run_token");
+        $stmt = $this->pdo->prepare("UPDATE campaigns SET last_status = 'cancelled', last_result = :result, job_updated_at = NOW() WHERE id = :id AND last_status IN ('queued', 'sending') AND job_token = :run_token");
         $stmt->execute([':result' => $message, ':id' => $id, ':run_token' => (string)$campaign['job_token']]);
         return ['success' => $stmt->rowCount() === 1, 'message' => $message] + $this->getCampaignProgress($id);
+    }
+
+    public function resumeCampaign(int $id, string $userName): array {
+        if (function_exists('user_can') && !user_can('send_bulk')) {
+            return ['success' => false, 'message' => 'Non hai il permesso di riprendere campagne.'];
+        }
+        $estimate = $this->estimateSavedCampaign($id);
+        if (empty($estimate['can_start'])) {
+            return ['success' => false, 'message' => (string)($estimate['message'] ?? 'Campagna bloccata.')];
+        }
+
+        try {
+            $this->pdo->beginTransaction();
+            $lock = $this->pdo->prepare('SELECT * FROM campaigns WHERE id = :id FOR UPDATE');
+            $lock->execute([':id' => $id]);
+            $campaign = $lock->fetch(PDO::FETCH_ASSOC) ?: [];
+            $total = max(0, (int)($campaign['job_total'] ?? 0));
+            $processed = max(0, min($total, (int)($campaign['job_processed'] ?? 0)));
+            if ((string)($campaign['last_status'] ?? '') !== 'cancelled'
+                || trim((string)($campaign['job_token'] ?? '')) === '' || $processed >= $total) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'message' => 'La campagna non puo essere ripresa dal punto interrotto.'];
+            }
+            $lockUntil = !empty($campaign['job_lock_until']) ? strtotime((string)$campaign['job_lock_until']) : 0;
+            if (trim((string)($campaign['job_lock_token'] ?? '')) !== '' && $lockUntil > time()) {
+                $this->pdo->rollBack();
+                return ['success' => false, 'message' => 'Arresto dell ultimo invio in completamento. Riprova tra pochi secondi.'];
+            }
+            $stmt = $this->pdo->prepare("UPDATE campaigns SET last_status = 'queued', last_result = 'Invio ripreso', last_sent_at = NOW(), job_user = :job_user, job_lock_token = NULL, job_lock_until = NULL, job_started_at = NOW(), job_started_processed = job_processed, job_updated_at = NOW() WHERE id = :id AND last_status = 'cancelled' AND job_token = :run_token");
+            $stmt->execute([':job_user' => $userName, ':id' => $id, ':run_token' => (string)$campaign['job_token']]);
+            $this->pdo->commit();
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            return ['success' => false, 'message' => 'Impossibile riprendere la campagna in sicurezza.'];
+        }
+        return ['success' => true, 'message' => 'Campagna ripresa dal punto interrotto.', 'progress' => $this->getCampaignProgress($id)];
     }
 
     public function processCampaignBatch(int $id, int $batchSize = 3): array {
@@ -1305,7 +1350,7 @@ class SmsApp {
                 $this->pdo->rollBack();
                 return ['success' => true, 'busy' => true] + $this->campaignProgress($campaign);
             }
-            $claim = $this->pdo->prepare("UPDATE campaigns SET last_status = 'sending', last_result = 'Invio in corso', job_lock_token = :token, job_lock_until = DATE_ADD(NOW(), INTERVAL 50 SECOND), job_updated_at = NOW() WHERE id = :id");
+            $claim = $this->pdo->prepare("UPDATE campaigns SET last_status = 'sending', last_result = 'Invio in corso', job_lock_token = :token, job_lock_until = DATE_ADD(NOW(), INTERVAL 50 SECOND), job_started_at = COALESCE(job_started_at, last_sent_at, NOW()), job_updated_at = NOW() WHERE id = :id");
             $claim->execute([':token' => $lockToken, ':id' => $id]);
             $this->pdo->commit();
 
@@ -1380,18 +1425,54 @@ class SmsApp {
     private function campaignProgress(array $campaign): array {
         $total = max(0, (int)($campaign['job_total'] ?? 0));
         $processed = max(0, min($total, (int)($campaign['job_processed'] ?? 0)));
+        $active = trim((string)($campaign['job_token'] ?? '')) !== ''
+            && in_array((string)($campaign['last_status'] ?? ''), ['queued', 'sending'], true);
+        $remaining = max(0, $total - $processed);
+        $etaSeconds = null;
+        $startedProcessed = max(0, min($processed, (int)($campaign['job_started_processed'] ?? 0)));
+        $sampleProcessed = $processed - $startedProcessed;
+        if ($active && $sampleProcessed > 0 && $remaining > 0) {
+            $startedAt = trim((string)($campaign['job_started_at'] ?? ''));
+            if ($startedAt === '') $startedAt = trim((string)($campaign['last_sent_at'] ?? ''));
+            $startedTimestamp = $startedAt !== '' ? strtotime($startedAt) : false;
+            if ($startedTimestamp !== false) {
+                $elapsedSeconds = max(1, time() - $startedTimestamp);
+                $etaSeconds = (int)ceil(($elapsedSeconds / $sampleProcessed) * $remaining);
+            }
+        }
         return [
             'campaign_id' => (int)($campaign['id'] ?? 0),
             'status' => (string)($campaign['last_status'] ?? 'draft'),
-            'active' => trim((string)($campaign['job_token'] ?? '')) !== '' && in_array((string)($campaign['last_status'] ?? ''), ['queued', 'sending'], true),
+            'active' => $active,
             'total' => $total,
             'processed' => $processed,
             'sent' => (int)($campaign['job_sent'] ?? 0),
             'failed' => (int)($campaign['job_failed'] ?? 0),
-            'remaining' => max(0, $total - $processed),
+            'remaining' => $remaining,
             'percent' => $total > 0 ? (int)floor(($processed / $total) * 100) : 0,
+            'can_resume' => (string)($campaign['last_status'] ?? '') === 'cancelled'
+                && trim((string)($campaign['job_token'] ?? '')) !== '' && $remaining > 0,
+            'eta_seconds' => $etaSeconds,
+            'eta_label' => $this->formatCampaignEta($etaSeconds, $active, $remaining),
             'message' => (string)($campaign['last_result'] ?? ''),
         ];
+    }
+
+    private function formatCampaignEta(?int $seconds, bool $active, int $remaining): string {
+        if (!$active || $remaining <= 0) return '';
+        if ($seconds === null) return 'Tempo stimato: calcolo in corso...';
+        if ($seconds < 60) return 'Tempo stimato: meno di un minuto';
+
+        $minutes = (int)ceil($seconds / 60);
+        if ($minutes < 60) {
+            return 'Tempo stimato: circa ' . $minutes . ($minutes === 1 ? ' minuto' : ' minuti');
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+        $label = 'Tempo stimato: circa ' . $hours . ($hours === 1 ? ' ora' : ' ore');
+        if ($remainingMinutes > 0) $label .= ' e ' . $remainingMinutes . ' min';
+        return $label;
     }
 
     public function sendCampaign(int $id, string $userName): array {
