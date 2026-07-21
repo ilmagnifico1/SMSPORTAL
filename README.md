@@ -2,6 +2,16 @@
 
 Per una nuova istanza apri la radice del portale via HTTPS: il wizard crea lo schema e il primo Super Admin. I permessi Linux e l'alternativa manuale sono descritti in [INSTALLATION.md](INSTALLATION.md).
 
+## Anteprima
+
+### Gestione campagne
+
+![Gestione campagne di SMS Portal](docs/screenshots/campaigns-overview.png)
+
+### Prima installazione
+
+![Procedura web di prima installazione](docs/screenshots/web-installer.png)
+
 SMS Portal è un’applicazione web PHP per gestire l’invio di SMS singoli e campagne, organizzata per aziende, team e utenti. Il portale centralizza provider, liste di destinatari, tariffe, crediti, autorizzazioni dei dispositivi e registri operativi.
 
 ## Funzionalità principali
