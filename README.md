@@ -4,6 +4,8 @@ Per una nuova istanza apri la radice del portale via HTTPS: il wizard crea lo sc
 
 ## Anteprima
 
+Le immagini mostrano l'interfaccia con dati dimostrativi e nessuna informazione reale.
+
 ### Gestione campagne
 
 ![Gestione campagne di SMS Portal](docs/screenshots/campaigns-overview.png)
