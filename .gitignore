@@ -12,6 +12,11 @@
 !/uploads/.gitkeep
 /internalprovider/storage/*
 !/internalprovider/storage/.gitkeep
+/storage/*
+!/storage/.gitkeep
+!/storage/.htaccess
+!/storage/web.config
+!/storage/config.local.php.example
 
 # Database, backup e pacchetti generati
 *.sql

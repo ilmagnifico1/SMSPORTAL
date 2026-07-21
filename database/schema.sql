@@ -481,8 +481,9 @@ CREATE TABLE `utenti` (
   `provider_access_configured` tinyint(1) DEFAULT 0,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_utenti_username` (`username`),
   KEY `idx_utenti_company_id` (`company_id`),
   KEY `idx_utenti_team_id` (`team_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS=1;

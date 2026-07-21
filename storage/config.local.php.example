@@ -1,0 +1,13 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'host' => 'localhost',
+    'port' => 3306,
+    'database' => 'sms',
+    'username' => 'sms_app',
+    'password' => 'sostituisci-con-una-password-sicura',
+    'trusted_proxies' => ['127.0.0.1/32', '::1/128'],
+    'public_host' => 'sms.example.com',
+];

@@ -26,7 +26,13 @@ class Connection {
     }
 
     private function databaseConfig(): array {
-        $localFile = __DIR__ . '/config.local.php';
+        $configuredFile = trim((string)getenv('SMS_CONFIG_FILE'));
+        $localFile = $configuredFile !== ''
+            ? $configuredFile
+            : dirname(__DIR__) . '/storage/config.local.php';
+        if (!is_file($localFile)) {
+            $localFile = __DIR__ . '/config.local.php';
+        }
         $local = is_file($localFile) ? (array) require $localFile : [];
         $read = static function (string $environmentName, string $localKey, string $default = '') use ($local): string {
             $environmentValue = getenv($environmentName);

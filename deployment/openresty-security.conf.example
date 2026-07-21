@@ -14,7 +14,7 @@ server_tokens off;
 
 # File e directory che non devono mai essere serviti come contenuto statico.
 location ~ (^|/)\. { return 404; }
-location ~* ^/(app|classes|inc|logs|uploads|scripts|templates|docs|deployment|chrome-extension|internalprovider)(/|$) { return 404; }
+location ~* ^/(app|classes|inc|logs|uploads|storage|scripts|templates|docs|deployment|chrome-extension|internalprovider)(/|$) { return 404; }
 location ~* ^/(README|TODO)\.md$ { return 404; }
 location ~* ^/web\.config$ { return 404; }
 location ~* \.(sql|log|bak|ini|env|dist|lock|lnk|pem|key|conf|config|md|ps1)$ { return 404; }

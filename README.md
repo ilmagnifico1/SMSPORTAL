@@ -1,6 +1,6 @@
 # SMS Portal
 
-Per installare una nuova istanza usa lo schema privo di dati in `database/schema.sql` e segui [INSTALLATION.md](INSTALLATION.md).
+Per una nuova istanza apri la radice del portale via HTTPS: il wizard crea lo schema e il primo Super Admin. I permessi Linux e l'alternativa manuale sono descritti in [INSTALLATION.md](INSTALLATION.md).
 
 SMS Portal è un’applicazione web PHP per gestire l’invio di SMS singoli e campagne, organizzata per aziende, team e utenti. Il portale centralizza provider, liste di destinatari, tariffe, crediti, autorizzazioni dei dispositivi e registri operativi.
 
@@ -44,16 +44,16 @@ SMS_PROVIDER_ALLOW_PRIVATE=false
 SMS_TEST_LOG_RETENTION_DAYS=30
 ```
 
-In sviluppo è supportato anche `classes/config.local.php`, che è escluso da Git. La chiave locale `trusted_proxies` accetta una lista di IP/CIDR esatti e viene usata solo quando `SMS_TRUSTED_PROXIES` non è impostata. Non salvare credenziali, dump SQL, log o chiavi private nella document root o nel repository.
+Il wizard salva la configurazione locale in `storage/config.local.php`, che è escluso da Git e bloccato dal server web. Per compatibilità è ancora supportato `classes/config.local.php`. La chiave locale `trusted_proxies` accetta soltanto IP/CIDR esatti e viene usata quando `SMS_TRUSTED_PROXIES` non è impostata. Non salvare credenziali, dump SQL, log o chiavi private nel repository.
 
 ## Avvio
 
 1. Pubblica il progetto nella document root del server web.
 2. Crea un database vuoto e un utente dedicato con privilegi limitati al solo database dell’applicazione.
-3. Configura le variabili `SMS_DB_*` nel servizio PHP.
-4. Verifica che PHP possa scrivere esclusivamente nelle directory operative necessarie.
-5. Apri `index.php` tramite HTTPS. Le tabelle applicative vengono inizializzate dal portale.
-6. Configura aziende, utenti, provider, crediti e listini dall’area **Impostazioni**.
+3. Applica i permessi descritti in [INSTALLATION.md](INSTALLATION.md).
+4. Apri la radice del portale tramite HTTPS e completa il wizard con credenziali DB e Super Admin.
+5. Dopo l’installazione, proteggi la configurazione con i comandi Linux indicati nella guida.
+6. Configura aziende, provider, crediti e listini dall’area **Impostazioni**.
 7. Installa l’estensione Chrome o Firefox e approva il dispositivo prima di effettuare invii reali.
 
 Per un’installazione di produzione, applica prima tutte le indicazioni contenute in [docs/SECURITY.md](docs/SECURITY.md).

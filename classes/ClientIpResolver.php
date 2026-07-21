@@ -9,7 +9,13 @@ final class ClientIpResolver
     {
         $configured = trim((string)getenv('SMS_TRUSTED_PROXIES'));
         if ($configured === '') {
-            $localConfigFile = __DIR__ . '/config.local.php';
+            $configuredFile = trim((string)getenv('SMS_CONFIG_FILE'));
+            $localConfigFile = $configuredFile !== ''
+                ? $configuredFile
+                : dirname(__DIR__) . '/storage/config.local.php';
+            if (!is_file($localConfigFile)) {
+                $localConfigFile = __DIR__ . '/config.local.php';
+            }
             if (is_file($localConfigFile)) {
                 $localConfig = (array)require $localConfigFile;
                 $localProxies = $localConfig['trusted_proxies'] ?? [];

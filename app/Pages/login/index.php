@@ -54,6 +54,7 @@ if (!empty($_SESSION['logged'])) {
     exit;
 }
 $firewallFlash = flash_message();
+$installationCompleted = (string)($_GET['installed'] ?? '') === '1';
 ?>
 
 <!DOCTYPE html>
@@ -102,6 +103,7 @@ $firewallFlash = flash_message();
         </div>
 
         <div id="err">
+            <?php if ($installationCompleted) : ?><p><b>Installazione completata. Accedi con il Super Admin appena creato.</b></p><?php endif; ?>
             <?php if ($firewallFlash !== '') : ?><p><b><?php echo htmlspecialchars($firewallFlash, ENT_QUOTES, 'UTF-8'); ?></b></p><?php endif; ?>
             <?php $user->showErr(); ?>
         </div>

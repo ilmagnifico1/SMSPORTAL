@@ -16,7 +16,7 @@
 - Credenziali provider non reinviate al browser durante la modifica.
 - Blocco degli invii concorrenti della stessa campagna, con recupero dopo un’ora in caso di processo interrotto.
 - Proxy header accettati soltanto da proxy configurati; nessuna rete privata è implicitamente attendibile.
-- Segreti DB rimossi dai file versionati e caricati da variabili d’ambiente o da `classes/config.local.php`, escluso da Git.
+- Segreti DB rimossi dai file versionati e caricati da variabili d’ambiente o da `storage/config.local.php`, escluso da Git e bloccato dal server web. `classes/config.local.php` resta supportato solo per compatibilità.
 - Invii singoli e campagne protetti da autorizzazione ECDSA P-256 monouso dell’estensione Chrome: firma legata al payload esatto, scadenza di 90 secondi e consumo atomico sul server.
 - Registro amministrativo dei dispositivi Chrome con stato in attesa, approvato o revocato; la chiave privata non esportabile rimane nel profilo dell’estensione e il server conserva soltanto la chiave pubblica.
 
@@ -52,16 +52,16 @@ SMS_SESSION_ABSOLUTE_SECONDS=28800
 SMS_TEST_LOG_RETENTION_DAYS=30
 ```
 
-Se il servizio non consente di impostare variabili d'ambiente, `classes/config.local.php` può contenere `trusted_proxies` come lista di IP/CIDR. Usare esclusivamente gli indirizzi puntuali dei reverse proxy (preferibilmente `/32` o `/128`), mai un'intera rete privata.
+Se il servizio non consente di impostare variabili d'ambiente, `storage/config.local.php` può contenere `trusted_proxies` come lista di IP/CIDR. Usare esclusivamente gli indirizzi puntuali dei reverse proxy (preferibilmente `/32` o `/128`), mai un'intera rete privata.
 
 Per un gateway hardware in LAN impostare `SMS_PROVIDER_ALLOW_PRIVATE=true`. Impostare anche `SMS_PROVIDER_ALLOW_HTTP=true` soltanto se l’apparato non supporta HTTPS e se il traffico passa su una VLAN/VPN dedicata.
 
 ## Azioni obbligatorie sul server
 
 1. Creare un utente MySQL dedicato `sms_app`, senza privilegi globali o accesso remoto non necessario. L’applicazione attuale esegue migrazioni DDL a runtime e richiede privilegi sulla sola base `sms`; in seguito le migrazioni dovrebbero essere separate per poter rimuovere `CREATE` e `ALTER`.
-2. Ruotare immediatamente la vecchia password MySQL, configurare le variabili `SMS_DB_*`, verificare il login e rimuovere `classes/config.local.php`.
+2. Ruotare immediatamente la vecchia password MySQL, configurare le variabili `SMS_DB_*` oppure `storage/config.local.php`, verificare il login e rimuovere eventuali vecchie configurazioni da `classes/config.local.php`.
 3. Spostare `localhost.sql`, log, backup e collegamenti Windows fuori dalla document root. Il dump può contenere dati personali, hash e configurazioni storiche.
-4. Lighttpd non legge `.htaccess`: includere `deployment/lighttpd-security.conf.example` nella configurazione globale, adattare il prefisso `/sms`, riavviare Lighttpd e verificare che `app/`, `classes/`, `inc/`, `logs/`, `uploads/`, file `.sql` e dotfile restituiscano `403/404`.
+4. Lighttpd non legge `.htaccess`: includere `deployment/lighttpd-security.conf.example` nella configurazione globale, adattare il prefisso `/sms`, riavviare Lighttpd e verificare che `app/`, `classes/`, `inc/`, `logs/`, `uploads/`, `storage/`, file `.sql` e dotfile restituiscano `403/404`.
 5. Forzare HTTPS sul reverse proxy, usare TLS moderno, non pubblicare direttamente la porta backend e limitare l’accesso amministrativo con firewall/VPN.
 6. Limitare MySQL, SMB, SSH/RDP e pannelli di gestione agli IP amministrativi. Il firewall PHP protegge solo le richieste che arrivano a PHP e non sostituisce il firewall di rete.
 7. Configurare backup cifrati fuori dal web server, retention dei log, monitoraggio dei fallimenti login/provider e alert sugli eventi critici.

@@ -1,7 +1,10 @@
 <?php
 
 $root = dirname(__DIR__);
-$configFile = $root . '/classes/config.local.php';
+$configFile = $root . '/storage/config.local.php';
+if (!is_file($configFile)) {
+    $configFile = $root . '/classes/config.local.php';
+}
 if (!is_file($configFile)) {
     fwrite(STDERR, "config.local.php non trovato; usare le variabili SMS_DB_* nel servizio.\n");
     exit(2);

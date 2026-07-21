@@ -90,6 +90,19 @@ class SystemLogger {
 
     public static function portalHost(): string {
         $configuredHost = trim((string)getenv('SMS_PUBLIC_HOST'));
+        if ($configuredHost === '') {
+            $configuredFile = trim((string)getenv('SMS_CONFIG_FILE'));
+            $localConfigFile = $configuredFile !== ''
+                ? $configuredFile
+                : dirname(__DIR__) . '/storage/config.local.php';
+            if (!is_file($localConfigFile)) {
+                $localConfigFile = __DIR__ . '/config.local.php';
+            }
+            if (is_file($localConfigFile)) {
+                $local = (array)require $localConfigFile;
+                $configuredHost = trim((string)($local['public_host'] ?? ''));
+            }
+        }
         $rawHost = $configuredHost !== '' ? $configuredHost : trim((string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? ''));
         $host = parse_url('http://' . $rawHost, PHP_URL_HOST);
         if (!is_string($host) || $host === '' || strlen($host) > 253) {
